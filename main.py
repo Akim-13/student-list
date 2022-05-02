@@ -1,125 +1,159 @@
 import logging
 
-NUM_OF_OPTS = 5
-
 class Student():
-    def __init__(self, parameters):  # TODO: subjects
-        if 'first_name' in parameters:
-            self.first_name = parameters[ 'first_name' ]
-        else:
-            print( "ERROR" )
-            # insert error handling here
-
-        self.last_name = parameters[ 'last_name' ]
-        self.age = parameters[ 'age' ]
-        self.gender = parameters[ 'gender' ]
-
-def opt_is_valid(inp):
-    isValid = False
-    for i in range(NUM_OF_OPTS):
-        if inp.isdigit() and int(inp) == i + 1 or inp == 'q':
-            isValid = True
-    return isValid
+    def __init__(self, parameters):
+        self.first_name = parameters['first name']
+        self.last_name = parameters['last name']
+        self.age = parameters['age']
+        self.gender = parameters['gender']
 
 
-def no_exceptions(inp):
-    if not opt_is_valid(inp):
-        print('The option is invalid!')
+def action_is_valid(selected_action):
+    if selected_action.isdigit()\
+       and int(selected_action) > 0\
+       and int(selected_action) <= len(actions):
+        return True
+    else:
         return False
-    if inp == 'q':
-        return False
-    return True
 
 
-def create_student():
-        first_name = input('Enter the first name of the student: ')
-        last_name = input('Enter the last name of the student: ')
-
-        age = input('Enter the age of the student: ')
-        if not age.isdigit():
-            print('Incorrect age.')
-            return
-
-        gender = input('[M]ale or [F]emale:')
-        if gender.lower() == 'm':
-            gender = "Male"
-        elif gender.lower() == 'f':
-            gender = 'Female'
-        else:
-            print('Incorrect gender.')
-            return
-
-        parameters = { 'first_name':first_name,\
-                       'last_name':last_name,\
-                       'age':age,\
-                       'gender':gender }
-
-        students.append(Student(parameters))
-        print(students)
-
-def print_all_students():
-    cnt = 1
-    for student in students:
-        print(f'{cnt})',
-              f'First name: {student.first_name}',
-              f'Last name: {student.last_name}',
-              f'Age: {student.age}',
-              f'Gender: {student.gender}')
-        cnt += 1
-
-def sel_opt(inp):
-    if not no_exceptions(inp):
+def select_action():
+    selected_action = input('Please select an action: ')
+    if not action_is_valid(selected_action):
+        print('Error: invalid action.\n')
+        print_actions()
         return
+    selected_action = int(selected_action) - 1
 
-    opt = int(inp)
+    actions[selected_action]['function']()
 
-    # Not scalable solution
-    if opt == 1:
-        create_student()
-    elif opt == 2:
-        print_all_students()
-        student_to_edit = input('Please choose a students to edit: ')
-        param_to_edit = None
-        while param_to_edit != 'q':
-            print('1) First name\n'
-                  '2) Last name\n'
-                  '3) Age \n'
-                  '4) Gender\n'
-                  'Enter q to quit.\n')
-            param_to_edit = input('Please choose an option to edit: ')
-            value = input('Enter a new value: ')
-            if 
-            students[student_to_edit - 1]
-            
-    elif opt == 3:
-        print_all_students()
-    elif opt == 4:
-        pass
-    elif opt == 5:
-        pass
+def validate_parameter( value, type, restrictions ):
+    # TODO: clean up
+    valid = True
+    result = None
+    error = ''
+    
+    if type == 'string':
+        try:
+            result = str( value )
+        except:
+            valid = False
+            error = 'The value is not a string'
+    elif type == 'number':
+        try:
+            result = float( value )
+        except:
+            valid = False
+            error = 'The value is not a number'
+    
+    if result == None:
+        valid = False
+    
+    if valid and 'list' in restrictions:
+        for restriction in restrictions[ 'list' ]:
+            if restriction == 'non-empty':
+                if result == '':
+                    valid = False
+                    error = 'The value is empty'
+            elif restriction == 'integer':
+                try:
+                    if result == int( result ):
+                        result = int( result )
+                    # Why? Isn't except enough?
+                    else:
+                        valid = False
+                        error = 'The value is not an integer'
+                except:
+                    valid = False
+                    error = 'The value is not an integer'
+            elif restriction == 'positive':
+                if result <= 0:
+                    valid = False
+                    error = 'The value is not positive'
+    
+    if valid and 'options' in restrictions:
+        value_found = False
+        for option in restrictions[ 'options' ]:
+            if option == result:
+                value_found = True
+        
+        if not value_found:
+            valid = False
+            error = 'The value was not found in the list of valid options'
+    
+    return { 'valid': valid, 'result': result, 'error': error }
 
 
-def input_loop(inp):
-    while inp != 'q':
-        sel_opt(inp)
-        inp = input('Enter an option: ')
+def add_student():
+    # TODO: clean up
+    student_parameters = {}
+    for parameter in required_parameters:
+        current_result_valid = False
+        while not current_result_valid:
+            input_prompt = "Please enter the student's " + required_parameters[ parameter ][ 'name' ]
+            # Why do we need to check the lenght?
+            if 'options' in required_parameters[ parameter ][ 'restrictions' ] and len( required_parameters[ parameter ][ 'restrictions' ][ 'options' ] ) > 0:
+                options_list = ''
+                for option in required_parameters[ parameter ][ 'restrictions' ][ 'options' ]:
+                    if len( options_list ) > 0:
+                        options_list += (f", '{option}'")
+                    else:
+                        options_list += (f"'{option}'")
+                input_prompt += ( "; possible values are " + options_list )
+
+            input_value = input( input_prompt + ": " )
+            validation_result = validate_parameter( input_value, required_parameters[ parameter ][ 'type' ], required_parameters[ parameter ][ 'restrictions' ] )
+            if validation_result[ 'valid' ]:
+                current_result_valid = True
+                student_parameters[required_parameters[parameter]['name']] = input_value
+            else:
+                print( "Error: " + validation_result[ 'error' ] )
+    #logging.debug(f'Student parameters: {student_parameters}')
+    student = Student(student_parameters)
+    students.append(student)
+    
+def edit_student():
+    pass
+        
+def list_students():
+    print(students)
+    
+def list_subjects():
+    pass
+
+def list_students_by_subjects():
+    pass
 
 
-def print_opts():
-    print('1) Add a new student\n'
-          '2) Edit an existing student\n'
-          '3) List all students\n'
-          '4) List all subjects\n'
-          '5) List all students by subjects\n\n'
-          'Enter q to quit.\n')
+def print_actions():
+    cnt = 1
+    for action in actions:
+        print(f"{cnt}) {action['description']}")
+        cnt += 1
+    print()
 
+def initialisation():
+    global students, required_parameters, actions
+    students = []
+    actions = [ { 'description':'Add a new students',            'function':add_student },
+                { 'description':'Edit an existing student',      'function':edit_student },               # TODO
+                { 'description':'List all students',             'function':list_students },
+                { 'description':'List all subjects',             'function':list_subjects },              # TODO
+                { 'description':'List all students by subjects', 'function':list_students_by_subjects },  # TODO
+                { 'description':'Quit',                          'function':quit }
+              ]
+
+    required_parameters = { 'first_name': { 'name': 'first name', 'type': 'string', 'restrictions': { 'list': ['non-empty' ] } },\
+                            'last_name': { 'name': 'last name', 'type': 'string', 'restrictions': { 'list': [ 'non-empty' ] } }, \
+                            'age': { 'name': 'age', 'type': 'number', 'restrictions': { 'list': [ 'integer', 'positive' ] } }, \
+                            'gender': { 'name': 'gender', 'type': 'string', 'restrictions': { 'list': [ 'non-empty' ], 'options': [ 'male', 'female' ] } } \
+                          }
 
 def main():
-    global students, subjects
-    students = []
-    subjects = []
-    print_opts()
-    input_loop(input('Enter an option: '))
+    initialisation()
+    print_actions()
+    while True:
+        select_action()
 
     
 if __name__ == '__main__':
