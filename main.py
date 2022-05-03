@@ -2,9 +2,10 @@ import logging
 
 
 class Student():
+    # TODO: re-do dynamically
     def __init__(self, parameters):
-        self.first_name = parameters['first name']
-        self.last_name = parameters['last name']
+        self.first_name = parameters['first_name']
+        self.last_name = parameters['last_name']
         self.age = parameters['age']
         self.gender = parameters['gender']
 
@@ -13,17 +14,19 @@ def action_is_valid(selected_action):
     is_valid = selected_action.isdigit()\
                and int(selected_action) > 0\
                and int(selected_action) <= len(actions)
+
     if is_valid:
         return True
     else:
-        print('Error: invalid action.\n')
-        print_actions()
+        return False
 
 
 def select_action():
     selected_action = input('Please select an action: ')
 
     if not action_is_valid(selected_action):
+        print('Error: invalid action.\n')
+        print_actions()
         return
 
     # Call a function corresponding to a selected action.
@@ -43,13 +46,13 @@ def validate_parameter(entered_parameter):
     
     if type == 'string':
         try:
-            result = str( value )
+            result = str(value)
         except:
             valid = False
             error = 'The value is not a string'
     elif type == 'number':
         try:
-            result = float( value )
+            result = float(value)
         except:
             valid = False
             error = 'The value is not a number'
@@ -65,12 +68,11 @@ def validate_parameter(entered_parameter):
                     error = 'The value is empty'
             elif restriction == 'integer':
                 try:
-                    if result == int( result ):
-                        result = int( result )
-                    # Why? Isn't except enough?
+                    if result == int(result):
+                        result = int(result)
                     else:
                         valid = False
-                        error = 'The value is not an integer'
+                        error = 'The value is a number but not an integer'
                 except:
                     valid = False
                     error = 'The value is not an integer'
@@ -104,7 +106,7 @@ def list_parameter_options(restrictions):
     return input_prompt
 
 
-def enter_parameter():
+def enter_parameter(parameter):
     input_prompt = "Please enter the student's " + parameter[ 'name' ]
     restrictions = parameter[ 'restrictions' ]
     has_options = 'options' in restrictions\
@@ -114,6 +116,7 @@ def enter_parameter():
         input_prompt += list_parameter_options(restrictions)
 
     input_value = input( input_prompt + ": " )
+
     
     return { 'input_value':input_value,\
              'type':parameter[ 'type' ],\
@@ -125,28 +128,25 @@ def parameter_is_valid(entered_parameter):
     validation_result = validate_parameter(entered_parameter)
 
     if validation_result[ 'valid' ]:
-        # Append a parameter to the dictionary.
-        student_parameters[parameter['name']] = entered_parameter['input_value']
         return True
     else:
         print( "Error: " + validation_result[ 'error' ] )
 
 
-def prompt_parameter_until_valid():
-    entered_parameter = enter_parameter()
+def prompt_parameter_until_valid(parameter):
+    entered_parameter = enter_parameter(parameter)
     while not parameter_is_valid(entered_parameter):
-        entered_parameter = enter_parameter()
+        entered_parameter = enter_parameter(parameter)
+
+    return entered_parameter[ 'input_value' ]
 
 
 def add_student():
-    global student_parameters
     student_parameters = {}
 
     for i_parameter in required_parameters:
-        # Better make parameter global or pass to every function that needs it?
-        global parameter
         parameter = required_parameters[ i_parameter ]
-        prompt_parameter_until_valid()
+        student_parameters[ i_parameter ] = prompt_parameter_until_valid(parameter)
 
     students.append(Student(student_parameters))
     
@@ -195,6 +195,7 @@ def initialisation():
 def main():
     initialisation()
     print_actions()
+    help()
     while True:
         select_action()
 
