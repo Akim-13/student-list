@@ -50,12 +50,12 @@ def initialisation():
     global students, required_parameters, actions
     students = []
     actions = [ 
+        { 'description':'Quit',                          'function':quit },
         { 'description':'Add a new students',            'function':add_student },
         { 'description':'Edit an existing student',      'function':edit_student },               # TODO
         { 'description':'List all students',             'function':list_students },              # TODO
         { 'description':'List all subjects',             'function':list_subjects },              # TODO
-        { 'description':'List all students by subjects', 'function':list_students_by_subjects },  # TODO
-        { 'description':'Quit',                          'function':quit }
+        { 'description':'List all students by subjects', 'function':list_students_by_subjects }   # TODO
     ]
 
     required_parameters = {
@@ -67,7 +67,7 @@ def initialisation():
 
 
 def print_actions():
-    cnt = 1
+    cnt = 0
     for action in actions:
         print(f"{cnt}) {action['description']}")
         cnt += 1
@@ -83,11 +83,11 @@ def select_action():
         return
 
     # Call a function corresponding to a selected action.
-    actions[ int(selected_action) - 1 ][ 'function' ]()
+    actions[ int(selected_action) ][ 'function' ]()
 
 
 def action_is_valid(selected_action):
-    is_valid = selected_action.isdigit() and int(selected_action)>0 and int(selected_action)<=len(actions)
+    is_valid = selected_action.isdigit() and int(selected_action)>=0 and int(selected_action)<=len(actions)
 
     if is_valid:
         return True
