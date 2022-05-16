@@ -2,27 +2,37 @@ import logging
 
 STUDENT_LIST_PATH = 'student_list.csv'
 
+class StudentList():
+    def __init__(self):
+        with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
+            self.students = student_list_csv.readlines()
+
+
+    def append_with(self, student):
+        with open(STUDENT_LIST_PATH, 'a') as self.students:
+            self.students.write(student)
+
+
+    def get_the_list_of_students(self):
+        with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
+            self.students = student_list_csv.readlines()
+        return self.students
+
+
 class Student():
-    # TODO: re-do dynamically
     def __init__(self, parameters):
         self.parameters = parameters
-        self.first_name = parameters['first_name']
-        self.last_name = parameters['last_name']
-        self.age = parameters['age']
-        self.gender = parameters['gender']
 
 
     def append_to_file(self):
         student_in_csv_format = Student.get_in_csv_format(self)
-
-        with open(STUDENT_LIST_PATH, 'a') as student_list:
-            student_list.write(student_in_csv_format)
+        StudentList().append_with(student_in_csv_format)
 
 
     def get_in_csv_format(self):
         student_in_csv_format = ''
-        i = 1
 
+        i = 1
         for parameter_value in self.parameters.values():
             is_last_iteration = i==len(self.parameters)
             student_in_csv_format += Student.get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration)
@@ -103,7 +113,6 @@ def add_student():
         student_parameters[ i_parameter ] = prompt_parameter_until_valid(parameter)
 
     student = Student(student_parameters)
-    students.append(student)
     Student.append_to_file(student)
 
 
@@ -112,7 +121,11 @@ def edit_student():
 
 
 def list_students():
-    print(students)
+    students = StudentList().get_the_list_of_students()
+
+    if len(students) == 0:
+        print('There are no students in the list.')
+        return
 
 
 def list_subjects():
