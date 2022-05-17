@@ -3,9 +3,10 @@ import logging
 STUDENT_LIST_PATH = 'student_list.csv'
 
 class StudentList():
-    def __init__(self):
+    def get_the_list_of_students(self):
         with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
             self.students = student_list_csv.readlines()
+        return self.students
 
 
     def append_with(self, student):
@@ -13,13 +14,8 @@ class StudentList():
             self.students.write(student)
 
 
-    def get_the_list_of_students(self):
-        with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
-            self.students = student_list_csv.readlines()
-        return self.students
-
-
 class Student():
+    # TODO: still needs to be done dynamically
     def __init__(self, parameters):
         self.parameters = parameters
 
@@ -36,7 +32,6 @@ class Student():
         for parameter_value in self.parameters.values():
             is_last_iteration = i==len(self.parameters)
             student_in_csv_format += Student.get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration)
-
             i += 1
 
         return student_in_csv_format
@@ -57,8 +52,7 @@ def main():
 
 
 def initialisation():
-    global students, required_parameters, actions
-    students = []
+    global required_parameters, actions
     actions = [ 
         { 'description':'Quit',                          'function':quit },
         { 'description':'Add a new students',            'function':add_student },
@@ -123,9 +117,42 @@ def edit_student():
 def list_students():
     students = StudentList().get_the_list_of_students()
 
-    if len(students) == 0:
+    if list_of_students_is_empty(students):
         print('There are no students in the list.')
         return
+    
+    print_each_students(students)
+
+
+def list_of_students_is_empty(students):
+    if len(students) == 0:
+        return True
+    else:
+        return False
+
+
+def print_each_students(students):
+    student_num = 1
+    for student in students:
+        print(f'Student #{student_num}')
+
+        values_of_student_parameters = student.split(', ')
+        print_each_parameter(values_of_student_parameters)
+
+        student_num += 1
+
+
+def print_each_parameter(values_of_student_parameters):
+    i = 0
+    for parameter in required_parameters:
+        parameter_name = required_parameters[parameter]['name'].capitalize()
+        print_formatted_student_parameter(parameter_name, values_of_student_parameters[i], i)
+        i += 1
+
+
+def print_formatted_student_parameter(parameter_name, parameter_value, current_iteration):
+    parameter_num = current_iteration + 1
+    print(f'{parameter_num}. {parameter_name}: {parameter_value}')
 
 
 def list_subjects():
