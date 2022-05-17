@@ -71,10 +71,10 @@ def initialisation():
 
 
 def print_actions():
-    cnt = 0
+    action_num = 0
     for action in actions:
-        print(f"{cnt}) {action['description']}")
-        cnt += 1
+        print(f'{action_num}) {action[ "description" ]}')
+        action_num += 1
     print()
 
 
@@ -120,8 +120,8 @@ def list_students():
     if list_of_students_is_empty(students):
         print('There are no students in the list.')
         return
-    
-    print_each_students(students)
+    else:
+        print_each_students(students)
 
 
 def list_of_students_is_empty(students):
@@ -145,8 +145,8 @@ def print_each_students(students):
 def print_each_parameter(values_of_student_parameters):
     i = 0
     for parameter in required_parameters:
-        parameter_name = required_parameters[parameter]['name'].capitalize()
-        print_formatted_student_parameter(parameter_name, values_of_student_parameters[i], i)
+        parameter_name = required_parameters[ parameter ][ 'name' ].capitalize()
+        print_formatted_student_parameter(parameter_name, values_of_student_parameters[ i ], i)
         i += 1
 
 
@@ -174,7 +174,7 @@ def prompt_parameter_until_valid(parameter):
 def enter_parameter(parameter):
     input_prompt = "Please enter the student's " + parameter[ 'name' ]
     restrictions = parameter[ 'restrictions' ]
-    has_options = 'options' in restrictions and len(restrictions[ 'options' ]) > 0
+    has_options = 'options' in restrictions and len(restrictions[ 'options' ])>0
 
     if has_options:
         input_prompt += list_parameter_options(restrictions)
@@ -194,18 +194,18 @@ def parameter_is_valid(entered_parameter):
     if validation_result[ 'valid' ]:
         return True
     else:
-        print( "Error: " + validation_result[ 'error' ] )
+        print("Error: " + validation_result[ 'error' ])
 
 
 def list_parameter_options(restrictions):
     options_list = ''
     for option in restrictions[ 'options' ]:
-        if len( options_list ) > 0:
+        if len(options_list) > 0:
             options_list += (f", '{option}'")
         else:
             options_list += (f"'{option}'")
 
-    input_prompt = ( "; possible values are " + options_list )
+    input_prompt = ("; possible values are " + options_list)
     return input_prompt
 
 
