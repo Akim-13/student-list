@@ -1,8 +1,10 @@
 import logging
+import sys
 
 STUDENT_LIST_PATH = 'student_list.csv'
 
 class StudentList():
+# TODO: still needs to be done dynamically
     def get_the_list_of_students(self):
         with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
             self.students = student_list_csv.readlines()
@@ -15,7 +17,6 @@ class StudentList():
 
 
 class Student():
-    # TODO: still needs to be done dynamically
     def __init__(self, parameters):
         self.parameters = parameters
 
@@ -63,10 +64,10 @@ def initialisation():
     ]
 
     required_parameters = {
-        'first_name': { 'name':'first name', 'type':'string', 'restrictions':{ 'list':['non-empty' ] } },\
-        'last_name':  { 'name':'last name',  'type':'string', 'restrictions':{ 'list':[ 'non-empty' ] } }, \
-        'age':        { 'name':'age',        'type':'number', 'restrictions':{ 'list':[ 'integer', 'positive' ] } }, \
-        'gender':     { 'name':'gender',     'type':'string', 'restrictions':{ 'list':[ 'non-empty' ], 'options':[ 'male', 'female' ] } } \
+        'first_name': { 'name':'first name', 'type':'string', 'restrictions':[ 'non-empty' ] },\
+        'last_name':  { 'name':'last name',  'type':'string', 'restrictions':[ 'non-empty' ] }, \
+        'age':        { 'name':'age',        'type':'number', 'restrictions':[ 'integer', 'positive' ] }, \
+        'gender':     { 'name':'gender',     'type':'string', 'restrictions':[ 'non-empty' ], 'options':[ 'male', 'female' ] } \
     }
 
 
@@ -181,11 +182,13 @@ def enter_parameter(parameter):
 
     input_value = input(input_prompt + ": ")
 
-    return { 
+    entered_parameter = { 
         'input_value':input_value,\
         'type':parameter[ 'type' ],\
         'restrictions':restrictions 
     }
+
+    return entered_parameter
 
 
 def parameter_is_valid(entered_parameter):
@@ -210,32 +213,13 @@ def list_parameter_options(restrictions):
 
 
 def validate_parameter(entered_parameter):
-    # TODO: clean up
+    validation_result = validate_by_type(entered_parameter)
+    
+    if validation_result[ 'valid' ]:
+        validate_restrictions()
+        validate_options()    
 
-    value = entered_parameter[ 'input_value' ]
-    type = entered_parameter[ 'type' ]
-    restrictions = entered_parameter[ 'restrictions' ]
-
-    valid = True
-    result = None
-    error = ''
-    
-    if type == 'string':
-        try:
-            result = str(value)
-        except:
-            valid = False
-            error = 'The value is not a string'
-    elif type == 'number':
-        try:
-            result = float(value)
-        except:
-            valid = False
-            error = 'The value is not a number'
-    
-    if result == None:
-        valid = False
-    
+    # validate_restrictions()
     if valid and 'list' in restrictions:
         for restriction in restrictions[ 'list' ]:
             if restriction == 'non-empty':
@@ -257,6 +241,7 @@ def validate_parameter(entered_parameter):
                     valid = False
                     error = 'The value is not positive'
     
+    # validate_options
     if valid and 'options' in restrictions:
         value_found = False
         for option in restrictions[ 'options' ]:
@@ -267,7 +252,38 @@ def validate_parameter(entered_parameter):
             valid = False
             error = 'The value was not found in the list of valid options'
 
-    return { 'valid': valid, 'result': result, 'error': error }
+    return validation_result 
+
+
+def validate_restrictions():
+    pass
+
+
+def validate_options():
+    pass
+
+
+def validate_by_type(entered_parameter):
+    if entered_parameter[ 'type' ] == 'string':
+        validation_result = validate_string(entered_parameter[ 'input_value' ])
+    elif entered_parameter[ 'type' ] == 'number': 
+        validation_result = validate_number(entered_parameter[ 'input_value' ])
+    else:
+        sys.exit('ERROR: Unknown parameter type.')
+
+    return validation_result
+
+
+def validate_string(value):
+    # Any user input can be converted to string, so just return it.
+    return { 'valid':True, 'result':str(value), 'error':None }
+
+
+def validate_number(value):
+    try:
+        return { 'Valid':True, 'result':float(value), 'error':None }
+    except ValueError:
+        return { 'valid':False, 'result':None, 'error':'The value is not a number'}
 
 
 if __name__ == '__main__':
