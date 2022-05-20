@@ -4,6 +4,7 @@ import sys
 STUDENT_LIST_PATH = 'student_list.csv'
 
 class StudentList():
+# TODO: still needs to be done dynamically
     def get_the_list_of_students(self):
         with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
             self.students = student_list_csv.readlines()
@@ -14,7 +15,6 @@ class StudentList():
             self.students.write(student)
 
 class Student():
-    # TODO: still needs to be done dynamically
     def __init__(self, parameters):
         self.parameters = parameters
 
