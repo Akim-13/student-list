@@ -1,27 +1,57 @@
 import logging
 import sys
+import os
 
-STUDENT_LIST_PATH = 'student_list.csv'
+# NOTE: Use absolute path for compatibility with Windows.
+STUDENT_LIST_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list.csv')
 
+
+# TODO: Implement class Subject() and corresponding csv files for each subject.
+
+# TODO: Link students and subjects by creating one relational file.csv:
+# student1.csv, subject2.csv, subject3.csv, subject6.csv
+# student5.csv, subject1.csv, subject2.csv
+# ...
+
+
+# TODO: Split the csv file, so that each students would have their own separate file.csv.
 class StudentList():
-# TODO: still needs to be done dynamically
+    # BUG: Crashes if the file doesn't exist.
     def get_the_list_of_students(self):
-        with open(STUDENT_LIST_PATH, 'r') as student_list_csv:
+        with open(STUDENT_LIST_ABSOLUTE_PATH, 'r') as student_list_csv:
             self.students = student_list_csv.readlines()
         return self.students
 
+    # TODO: Add try/except in case the file cannot be created/written.
     def append_with(self, student):
-        with open(STUDENT_LIST_PATH, 'a') as self.students:
+        with open(STUDENT_LIST_ABSOLUTE_PATH, 'a') as self.students:
             self.students.write(student)
 
 class Student():
     def __init__(self, parameters):
         self.parameters = parameters
 
+    def get_parameter(self, parameter_name):
+        if parameter_name in self.parameters:
+            return self.parameters[ parameter_name ]
+        else:
+            # FIXME: don't return None.
+            return None
+
+    def set_parameter(self, parameter_name, parameter_value):
+        if parameter_name in self.parameters:
+            # TODO: Validate the parameter.
+            self.parameters[ parameter_name ] = parameter_value
+            return True
+        else:
+            return False
+
     def append_to_file(self):
         student_in_csv_format = Student.get_in_csv_format(self)
         StudentList().append_with(student_in_csv_format)
 
+    # TODO: Change the format to:
+    # first_name:'A', last_name:'K', age:'36', gender:'male'
     def get_in_csv_format(self):
         student_in_csv_format = ''
 
@@ -40,6 +70,7 @@ class Student():
             return parameter_value + ', '
 
 class Validator():
+    # TODO: Make methods private by prepending `__`.
     def __init__(self, entered_parameter):
         self.value = entered_parameter[ 'input_value' ]
         self.type = entered_parameter[ 'type' ]
@@ -73,7 +104,7 @@ class Validator():
             sys.exit('ERROR: Unknown parameter type.')
 
     def validate_string(self):
-        # Any user input can be converted to string, so just return it.
+        # NOTE: Any user input can be converted to string, so just return it.
         self.result = str(self.value)
         self.valid = True
 
@@ -81,7 +112,7 @@ class Validator():
         try:
             self.result = float(self.value)
             self.valid = True
-        except ValueError:
+        except:
             self.error = 'The value is not a number.'
             self.valid = False
 
@@ -160,10 +191,10 @@ def initialisation():
     actions = [ 
         { 'description':'Quit',                          'function':quit },
         { 'description':'Add a new students',            'function':add_student },
-        { 'description':'Edit an existing student',      'function':edit_student },               # TODO
         { 'description':'List all students',             'function':list_students },
-        { 'description':'List all subjects',             'function':list_subjects },              # TODO
-        { 'description':'List all students by subjects', 'function':list_students_by_subjects }   # TODO
+        { 'description':'Edit an existing student',      'function':edit_student },
+        { 'description':'List all subjects',             'function':list_subjects },
+        { 'description':'List all students by subjects', 'function':list_students_by_subjects }
     ]
 
     required_parameters = {
@@ -188,7 +219,7 @@ def select_action():
         print_actions()
         return
 
-    # Call a function corresponding to a selected action.
+    # NOTE: Call a function corresponding to a selected action.
     actions[ int(selected_action) ][ 'function' ]()
 
 def action_is_valid(selected_action):
@@ -208,51 +239,6 @@ def add_student():
 
     student = Student(student_parameters)
     Student.append_to_file(student)
-
-def edit_student():
-    pass
-
-def list_students():
-    students = StudentList().get_the_list_of_students()
-
-    if list_of_students_is_empty(students):
-        print('There are no students in the list.')
-        return
-    else:
-        print_each_students(students)
-
-def list_subjects():
-    pass
-
-def list_students_by_subjects():
-    pass
-
-def list_of_students_is_empty(students):
-    if len(students) == 0:
-        return True
-    else:
-        return False
-
-def print_each_students(students):
-    student_num = 1
-    for student in students:
-        print(f'Student #{student_num}')
-
-        values_of_student_parameters = student.split(', ')
-        print_each_parameter(values_of_student_parameters)
-
-        student_num += 1
-
-def print_each_parameter(values_of_student_parameters):
-    i = 0
-    for parameter in required_parameters:
-        parameter_name = required_parameters[ parameter ][ 'name' ].capitalize()
-        print_formatted_student_parameter(parameter_name, values_of_student_parameters[ i ], i)
-        i += 1
-
-def print_formatted_student_parameter(parameter_name, parameter_value, current_iteration):
-    parameter_num = current_iteration + 1
-    print(f'{parameter_num}. {parameter_name}: {parameter_value}')
 
 def prompt_parameter_until_valid(parameter):
     entered_parameter = enter_parameter(parameter)
@@ -281,14 +267,6 @@ def enter_parameter(parameter):
 
     return entered_parameter
 
-def parameter_is_valid(entered_parameter):
-    validation_result = Validator(entered_parameter)
-
-    if validation_result.is_valid():
-        return True
-    else:
-        print("Error: " + validation_result.error)
-
 def list_parameter_options(options):
     options_list = ''
     for option in options:
@@ -299,6 +277,64 @@ def list_parameter_options(options):
 
     input_prompt = ("; possible values are " + options_list)
     return input_prompt
+
+def parameter_is_valid(entered_parameter):
+    validation_result = Validator(entered_parameter)
+
+    if validation_result.is_valid():
+        return True
+    else:
+        print("Error: " + validation_result.error)
+
+def list_students():
+    students = StudentList().get_the_list_of_students()
+
+    if list_of_students_is_empty(students):
+        print('There are no students in the list.')
+        return
+    else:
+        print_each_student(students)
+
+def list_of_students_is_empty(students):
+    if len(students) == 0:
+        return True
+    else:
+        return False
+
+def print_each_student(students):
+    # TODO: change the logic, create a function print_student() and put it inside the loop.
+    student_num = 1
+    for student in students:
+        print(f'Student #{student_num}')
+
+        values_of_student_parameters = student.split(', ')
+        print_each_parameter(values_of_student_parameters)
+
+        student_num += 1
+
+def print_each_parameter(values_of_student_parameters):
+    # TODO: change the logic, create a function print_parameter() and put it inside the loop.
+    i = 0
+    for parameter in required_parameters:
+        parameter_name = required_parameters[ parameter ][ 'name' ].capitalize()
+        print_formatted_student_parameter(parameter_name, values_of_student_parameters[ i ], i)
+        i += 1
+
+def print_formatted_student_parameter(parameter_name, parameter_value, current_iteration):
+    parameter_num = current_iteration + 1
+    print(f'{parameter_num}. {parameter_name}: {parameter_value}')
+
+# TODO
+def edit_student():
+    pass
+
+# TODO
+def list_subjects():
+    pass
+
+# TODO
+def list_students_by_subjects():
+    pass
 
 if __name__ == '__main__':
     # Logging
