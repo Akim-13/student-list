@@ -47,30 +47,29 @@ class Student():
             return False
 
     def append_to_file(self):
-        student_in_csv_format = Student.get_in_csv_format(self)
+        student_in_csv_format = Student.__get_in_csv_format(self)
         StudentList().append_with(student_in_csv_format)
 
     # TODO: Change the format to:
     # first_name:'A', last_name:'K', age:'36', gender:'male'
-    def get_in_csv_format(self):
+    def __get_in_csv_format(self):
         student_in_csv_format = ''
 
         i = 1
         for parameter_value in self.parameters.values():
             is_last_iteration = i==len(self.parameters)
-            student_in_csv_format += Student.get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration)
+            student_in_csv_format += Student.__get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration)
             i += 1
 
         return student_in_csv_format
 
-    def get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration):
+    def __get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration):
         if is_last_iteration:
             return parameter_value + '\n'
         else:
             return parameter_value + ', '
 
 class Validator():
-    # TODO: Make methods private by prepending `__`.
     def __init__(self, entered_parameter):
         self.value = entered_parameter[ 'input_value' ]
         self.type = entered_parameter[ 'type' ]
@@ -82,33 +81,33 @@ class Validator():
         self.error = ''
 
     def is_valid(self):
-        Validator.validate_by_type(self)
+        Validator.__validate_by_type(self)
 
         if self.valid:
             has_restrictions = self.restrictions
             if has_restrictions:
-                Validator.validate_restrictions(self)
+                Validator.__validate_restrictions(self)
 
             has_options = self.options
             if has_options:
-                Validator.validate_options(self)
+                Validator.__validate_options(self)
 
         return self.valid
 
-    def validate_by_type(self):
+    def __validate_by_type(self):
         if self.type == 'string':
-            Validator.validate_string(self)
+            Validator.__validate_string(self)
         elif self.type == 'number': 
-            Validator.validate_number(self)
+            Validator.__validate_number(self)
         else:
             sys.exit('ERROR: Unknown parameter type.')
 
-    def validate_string(self):
+    def __validate_string(self):
         # NOTE: Any user input can be converted to string, so just return it.
         self.result = str(self.value)
         self.valid = True
 
-    def validate_number(self):
+    def __validate_number(self):
         try:
             self.result = float(self.value)
             self.valid = True
@@ -116,60 +115,60 @@ class Validator():
             self.error = 'The value is not a number.'
             self.valid = False
 
-    def validate_restrictions(self):
+    def __validate_restrictions(self):
         for restriction in self.restrictions:
             if restriction == 'non-empty':
-                Validator.validate_non_empty_restriction(self, restriction)
+                Validator.__validate_non_empty_restriction(self, restriction)
 
             elif restriction == 'integer':
-                Validator.validate_integer_restriction(self)
+                Validator.__validate_integer_restriction(self)
 
             elif restriction == 'positive':
-                Validator.validate_positive_restriction(self, restriction)
+                Validator.__validate_positive_restriction(self, restriction)
 
             else:
                 return
 
-    def validate_non_empty_restriction(self, restriction):
+    def __validate_non_empty_restriction(self, restriction):
         try:
-            Validator.check_if_empty(self, self.result)
+            Validator.__check_if_empty(self, self.result)
         except:
-            Validator.exit_with_error_invalid_restriction(self, restriction)
+            Validator.__exit_with_error_invalid_restriction(self, restriction)
 
-    def check_if_empty(self, result):
+    def __check_if_empty(self, result):
         if result == '':
             self.error = 'The value is empty.'
             self.valid = False
 
-    def exit_with_error_invalid_restriction(self, restriction):
+    def __exit_with_error_invalid_restriction(self, restriction):
         sys.exit(f'ERROR: invalid restriction {restriction} for type {self.type}')
 
-    def validate_integer_restriction(self):
+    def __validate_integer_restriction(self):
         try:
-            Validator.check_if_integer(self, self.result)
+            Validator.__check_if_integer(self, self.result)
         except:
             self.error = 'The value is not an integer.'
             self.valid = False
 
-    def check_if_integer(self, result):
+    def __check_if_integer(self, result):
         if result == int(result):
             self.result = int(result)
         else:
             self.error = 'The value is a number but not an integer.'
             self.valid = False
 
-    def validate_positive_restriction(self, restriction):
+    def __validate_positive_restriction(self, restriction):
         try:
-            Validator.check_if_positive(self, self.result)
+            Validator.__check_if_positive(self, self.result)
         except:
-            Validator.exit_with_error_invalid_restriction(self, restriction)
+            Validator.__exit_with_error_invalid_restriction(self, restriction)
 
-    def check_if_positive(self, result):
+    def __check_if_positive(self, result):
         if result <= 0:
             self.valid = False
             self.error = 'The value is not positive'
 
-    def validate_options(self):
+    def __validate_options(self):
         value_found = False
 
         for option in self.options:
