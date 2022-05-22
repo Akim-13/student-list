@@ -12,26 +12,37 @@ STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 # ...
 
 class StudentList():
-    def get_the_list_of_students(self):
+    def get_raw_list_of_students(self):
         try:
             self.students = StudentList.__read_each_file(self)
             return self.students
         except FileNotFoundError:
             StudentList.__create_dir_if_nonexistent(self)
-            StudentList.get_the_list_of_students(self)
+            StudentList.get_raw_list_of_students(self)
         except:
             StudentList.__exit_with_error()
 
     def __read_each_file(self):
         # HACK: self.students doesn't work, so using a local list instead.
         students = []
-        student_files = os.listdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+
+        student_files = StudentList.__get_sorted_list_of_files()
         for student_file in student_files:
             with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + student_file, 'r') as self.cur_student_file:
                 student = self.cur_student_file.read()
                 # QUESTION: why doesn't self.students.append(...) work?
                 students.append(student)
+
         return students
+
+    @staticmethod
+    def __get_sorted_list_of_files():
+        os.chdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+        student_files = os.listdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+        # Sort the list of files by date. 
+        student_files.sort(key = os.path.getmtime)
+
+        return student_files
 
     def __create_dir_if_nonexistent(self):
         if not os.path.exists(STUDENT_LIST_DIR_ABSOLUTE_PATH):
@@ -81,18 +92,19 @@ class Student():
         student_in_csv_format = ''
 
         i = 1
-        for parameter_value in self.parameters.values():
+        for self.key, self.value in self.parameters.items():
             is_last_iteration = i==len(self.parameters)
-            student_in_csv_format += Student.__get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration)
+            student_in_csv_format += Student.__get_parameter_with_delimiter(self, is_last_iteration)
             i += 1
 
         return student_in_csv_format
 
-    def __get_parameter_value_with_delimiter(self, parameter_value, is_last_iteration):
+    def __get_parameter_with_delimiter(self, is_last_iteration):
+        format = f'"{self.key}":"{self.value}"'
         if is_last_iteration:
-            return parameter_value + '\n'
+            return format + '\n'
         else:
-            return parameter_value + ', '
+            return format + ', '
 
     def __generate_filename(self):
         first_name = self.parameters[ 'first_name' ]
@@ -318,13 +330,13 @@ def parameter_is_valid(entered_parameter):
         print("Error: " + validation_result.error)
 
 def list_students():
-    students = StudentList().get_the_list_of_students()
+    raw_list_of_students = StudentList().get_raw_list_of_students()
 
-    if list_of_students_is_empty(students):
+    if list_of_students_is_empty(raw_list_of_students):
         print('There are no students in the list.')
         return
     else:
-        print_each_student(students)
+        print_each_student(raw_list_of_students)
 
 def list_of_students_is_empty(students):
     if len(students) == 0:
@@ -332,28 +344,48 @@ def list_of_students_is_empty(students):
     else:
         return False
 
-def print_each_student(students):
-    # TODO: change the logic, create a function print_student() and put it inside the loop.
+def print_each_student(raw_list_of_students):
     student_num = 1
-    for student in students:
+    for raw_student in raw_list_of_students:
         print(f'Student #{student_num}')
 
-        values_of_student_parameters = student.split(', ')
-        print_each_parameter(values_of_student_parameters)
+        logging.debug(raw_student)
+        print_student(raw_student)
 
         student_num += 1
 
-def print_each_parameter(values_of_student_parameters):
-    # TODO: change the logic, create a function print_parameter() and put it inside the loop.
-    i = 0
-    for parameter in required_parameters:
-        parameter_name = required_parameters[ parameter ][ 'name' ].capitalize()
-        print_formatted_student_parameter(parameter_name, values_of_student_parameters[ i ], i)
-        i += 1
+def print_student(raw_student):
+    parameter_num = 1
 
-def print_formatted_student_parameter(parameter_name, parameter_value, current_iteration):
-    parameter_num = current_iteration + 1
-    print(f'{parameter_num}. {parameter_name}: {parameter_value}')
+    str_raw_student_parameters = raw_student.split(', ')
+    for str_raw_parameter in str_raw_student_parameters:
+        print(f'{parameter_num}) ', end='')
+
+        print_parameter(str_raw_parameter)
+
+        parameter_num += 1
+
+def print_parameter(str_raw_parameter):
+    key_value_pair = str_raw_parameter.split(':')
+    key = key_value_pair[ 0 ].replace('"', '')
+    value = key_value_pair[ 1 ].replace('"', '')
+
+    for req_parameter_key in required_parameters.keys():
+        parameter_name = get_parameter_name_by_matching_keys(key, req_parameter_key)
+        if parameter_name != None:
+            print_formatted_student_parameter(parameter_name, value)
+
+def get_parameter_name_by_matching_keys(key, req_parameter_key):
+    if key == req_parameter_key:
+        parameter_name = required_parameters[ req_parameter_key ][ 'name' ].capitalize()
+        return parameter_name
+    else:
+        # WONTFIX: this function is intended to be used only in
+        # print_parameter(...), where there is a check for None.
+        return None
+
+def print_formatted_student_parameter(parameter_name, parameter_value):
+    print(f'{parameter_name}: {parameter_value}')
 
 # TODO
 def edit_student():
