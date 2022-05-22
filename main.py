@@ -39,7 +39,7 @@ class StudentList():
     def __get_sorted_list_of_files():
         os.chdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
         student_files = os.listdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
-        # Sort the list of files by date. 
+        # NOTE: Sort the list of files by date. 
         student_files.sort(key = os.path.getmtime)
 
         return student_files
@@ -70,8 +70,7 @@ class Student():
         if parameter_name in self.parameters:
             return self.parameters[ parameter_name ]
         else:
-            # FIXME: don't return None.
-            return None
+            raise TypeError(f'parameter {parameter_name} does not exist.')
 
     def set_parameter(self, parameter_name, parameter_value):
         if parameter_name in self.parameters:
@@ -86,8 +85,6 @@ class Student():
         filename = Student.__generate_filename(self)
         StudentList().add_student_file(student_in_csv_format, filename)
 
-    # TODO: Change the format to:
-    # first_name:'A', last_name:'K', age:'36', gender:'male'
     def __get_in_csv_format(self):
         student_in_csv_format = ''
 
@@ -128,12 +125,10 @@ class Validator():
         Validator.__validate_by_type(self)
 
         if self.valid:
-            has_restrictions = self.restrictions
-            if has_restrictions:
+            if self.restrictions:
                 Validator.__validate_restrictions(self)
 
-            has_options = self.options
-            if has_options:
+            if self.options:
                 Validator.__validate_options(self)
 
         return self.valid
@@ -304,7 +299,8 @@ def enter_parameter(parameter):
     entered_parameter = { 
         'input_value':input_value,\
         'type':parameter[ 'type' ],\
-        'restrictions': parameter[ 'restrictions' ],\
+        'restrictions':parameter[ 'restrictions' ],\
+        # WARNING: Can return None.
         'options':options
     }
 
