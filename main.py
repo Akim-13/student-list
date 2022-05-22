@@ -2,9 +2,7 @@ import logging
 import sys
 import os
 
-# NOTE: Use absolute path for compatibility with Windows.
-STUDENT_LIST_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list.csv')
-
+STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 
 # TODO: Implement class Subject() and corresponding csv files for each subject.
 
@@ -13,19 +11,45 @@ STUDENT_LIST_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list.csv')
 # student5.csv, subject1.csv, subject2.csv
 # ...
 
-
-# TODO: Split the csv file, so that each students would have their own separate file.csv.
 class StudentList():
-    # BUG: Crashes if the file doesn't exist.
     def get_the_list_of_students(self):
-        with open(STUDENT_LIST_ABSOLUTE_PATH, 'r') as student_list_csv:
-            self.students = student_list_csv.readlines()
-        return self.students
+        try:
+            self.students = StudentList.__read_each_file(self)
+            return self.students
+        except FileNotFoundError:
+            StudentList.__create_dir_if_nonexistent(self)
+            StudentList.get_the_list_of_students(self)
+        except:
+            StudentList.__exit_with_error()
 
-    # TODO: Add try/except in case the file cannot be created/written.
-    def append_with(self, student):
-        with open(STUDENT_LIST_ABSOLUTE_PATH, 'a') as self.students:
-            self.students.write(student)
+    def __read_each_file(self):
+        # HACK: self.students doesn't work, so using a local list instead.
+        students = []
+        student_files = os.listdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+        for student_file in student_files:
+            with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + student_file, 'r') as self.cur_student_file:
+                student = self.cur_student_file.read()
+                # QUESTION: why doesn't self.students.append(...) work?
+                students.append(student)
+        return students
+
+    def __create_dir_if_nonexistent(self):
+        if not os.path.exists(STUDENT_LIST_DIR_ABSOLUTE_PATH):
+            os.makedirs(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+
+    @staticmethod
+    def __exit_with_error():
+        sys.exit(f'ERROR: cannot access or modify "{STUDENT_LIST_DIR_ABSOLUTE_PATH}" directory.')
+
+    def add_student_file(self, student, filename):
+        try: 
+            with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + filename, 'w') as self.cur_student_file:
+                self.cur_student_file.write(student)
+        except FileNotFoundError:
+            StudentList.__create_dir_if_nonexistent(self)
+            StudentList.add_student_file(self, student, filename)
+        except:
+            StudentList.__exit_with_error()
 
 class Student():
     def __init__(self, parameters):
@@ -46,9 +70,10 @@ class Student():
         else:
             return False
 
-    def append_to_file(self):
+    def write_to_file(self):
         student_in_csv_format = Student.__get_in_csv_format(self)
-        StudentList().append_with(student_in_csv_format)
+        filename = Student.__generate_filename(self)
+        StudentList().add_student_file(student_in_csv_format, filename)
 
     # TODO: Change the format to:
     # first_name:'A', last_name:'K', age:'36', gender:'male'
@@ -68,6 +93,13 @@ class Student():
             return parameter_value + '\n'
         else:
             return parameter_value + ', '
+
+    def __generate_filename(self):
+        first_name = self.parameters[ 'first_name' ]
+        last_name = self.parameters[ 'last_name' ]
+        extension = 'csv'
+        filename = f'{first_name}_{last_name}.{extension}'
+        return filename
 
 class Validator():
     def __init__(self, entered_parameter):
@@ -237,7 +269,7 @@ def add_student():
         student_parameters[ i_parameter ] = prompt_parameter_until_valid(parameter)
 
     student = Student(student_parameters)
-    Student.append_to_file(student)
+    Student.write_to_file(student)
 
 def prompt_parameter_until_valid(parameter):
     entered_parameter = enter_parameter(parameter)
