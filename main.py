@@ -10,6 +10,28 @@ STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 # student1.csv, subject2.csv, subject3.csv, subject6.csv
 # student5.csv, subject1.csv, subject2.csv
 # ...
+ 
+# EXPERIMENTAL: I'm unsure about the usefulness of
+# this class yet, but it may have some applications.
+# Ask AK to search for 'Null' and examine the code.
+# SEE: https://www.oreilly.com/library/view/python-cookbook/0596001673/ch05s24.html
+class Null:
+    """ Null objects always and reliably "do nothing." """
+
+    def __init__(self, *args, **kwargs): 
+        pass
+    def __call__(self, *args, **kwargs): 
+        return self
+    def __repr__(self): 
+        return "Null( )"
+    def __nonzero__(self): 
+        return 0
+    def __getattr__(self, name): 
+        return self
+    def __setattr__(self, name, value): 
+        return self
+    def __delattr__(self, name): 
+        return self
 
 class StudentList():
     def get_raw_list_of_students(self):
@@ -70,7 +92,8 @@ class Student():
         if parameter_name in self.parameters:
             return self.parameters[ parameter_name ]
         else:
-            raise TypeError(f'parameter {parameter_name} does not exist.')
+            return Null() 
+            #raise TypeError(f'parameter {parameter_name} does not exist.')
 
     def set_parameter(self, parameter_name, parameter_value):
         if parameter_name in self.parameters:
@@ -128,7 +151,8 @@ class Validator():
             if self.restrictions:
                 Validator.__validate_restrictions(self)
 
-            if self.options:
+            has_options = not isinstance(self.options, Null)
+            if has_options:
                 Validator.__validate_options(self)
 
         return self.valid
@@ -288,7 +312,7 @@ def prompt_parameter_until_valid(parameter):
 def enter_parameter(parameter):
     input_prompt = "Please enter the student's " + parameter[ 'name' ]
 
-    options = None
+    options = Null()
     has_options = 'options' in parameter and len(parameter[ 'options' ])>0
     if has_options:
         options = parameter[ 'options' ]
@@ -367,7 +391,7 @@ def print_parameter(str_raw_parameter):
 
     for req_parameter_key in required_parameters.keys():
         parameter_name = get_parameter_name_by_matching_keys(key, req_parameter_key)
-        if parameter_name != None:
+        if not isinstance(parameter_name, Null):
             print_formatted_student_parameter(parameter_name, value)
 
 def get_parameter_name_by_matching_keys(key, req_parameter_key):
@@ -376,8 +400,8 @@ def get_parameter_name_by_matching_keys(key, req_parameter_key):
         return parameter_name
     else:
         # WONTFIX: this function is intended to be used only in
-        # print_parameter(...), where there is a check for None.
-        return None
+        # print_parameter(...), where there is a check for Null.
+        return Null()
 
 def print_formatted_student_parameter(parameter_name, parameter_value):
     print(f'{parameter_name}: {parameter_value}')
