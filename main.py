@@ -349,7 +349,6 @@ def print_each_student(raw_list_of_students):
     for raw_student in raw_list_of_students:
         print(f'Student #{student_num}')
 
-        logging.debug(raw_student)
         print_student(raw_student)
 
         student_num += 1
