@@ -2,6 +2,7 @@ import logging
 import sys
 import os
 
+# NOTE: The absolute path is used for compatibility with Windows.
 STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 
 # TODO: Implement class Subject() and corresponding csv files for each subject.
@@ -11,56 +12,66 @@ STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 # student5.csv, subject1.csv, subject2.csv
 # ...
 
-class StudentList():
-    def get_raw_list_of_students(self):
+class FileHandler():
+    # NOTE: Directory is also a file, i.e. `filename` could be a name of a directory.
+    def __init__(self, filename):
+        self.filename = filename
+
+    def get_list_of_files_sorted_by_date_from_dir(self):
+        dir = self.filename
+        FileHandler(dir).pcall(os.chdir, dir) 
+        list_of_files = os.listdir(dir)
+        list_of_files.sort(key = os.path.getmtime)
+
+        return list_of_files
+
+    # EXPERIMENTAL: protected call.
+    def pcall(self, func, *args, **kwargs):
         try:
-            self.students = StudentList.__read_each_file(self)
-            return self.students
-        except FileNotFoundError:
-            StudentList.__create_dir_if_nonexistent(self)
-            StudentList.get_raw_list_of_students(self)
+            return func(*args)
+
+        except FileNotFoundError as e:
+            FileHandler.__create_dir_if_nonexistent(self)
+            # HACK: The following is to prevent infinite recursion 
+            # in case `__create_dir_if_nonexistent(...)` fails.
+            try:
+                FileHandler.pcall(self, func, *args, **kwargs)
+            except RecursionError:
+                FileHandler.__exit_with_error(e)
+
+        except PermissionError as e:
+            FileHandler.__exit_with_error(e)
+
         except:
-            StudentList.__exit_with_error()
-
-    def __read_each_file(self):
-        # HACK: self.students doesn't work, so using a local list instead.
-        students = []
-
-        student_files = StudentList.__get_sorted_list_of_files()
-        for student_file in student_files:
-            with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + student_file, 'r') as self.cur_student_file:
-                student = self.cur_student_file.read()
-                # QUESTION: why doesn't self.students.append(...) work?
-                students.append(student)
-
-        return students
-
-    @staticmethod
-    def __get_sorted_list_of_files():
-        os.chdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
-        student_files = os.listdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
-        # NOTE: Sort the list of files by date. 
-        student_files.sort(key = os.path.getmtime)
-
-        return student_files
+            error = f'ERROR: {sys.exc_info()[1]}'
+            FileHandler.__exit_with_error(error)
 
     def __create_dir_if_nonexistent(self):
-        if not os.path.exists(STUDENT_LIST_DIR_ABSOLUTE_PATH):
-            os.makedirs(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+        if not os.path.exists(self.filename):
+            os.makedirs(self.filename)
 
     @staticmethod
-    def __exit_with_error():
-        sys.exit(f'ERROR: cannot access or modify "{STUDENT_LIST_DIR_ABSOLUTE_PATH}" directory.')
+    def __exit_with_error(error):
+        sys.exit(error)
 
-    def add_student_file(self, student, filename):
-        try: 
-            with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + filename, 'w') as self.cur_student_file:
-                self.cur_student_file.write(student)
-        except FileNotFoundError:
-            StudentList.__create_dir_if_nonexistent(self)
-            StudentList.add_student_file(self, student, filename)
-        except:
-            StudentList.__exit_with_error()
+    def get_contents_of_all_files_in_dir(self):
+        dir = self.filename
+        files = FileHandler(dir).get_list_of_files_sorted_by_date_from_dir()
+        list_of_contents = []
+
+        for filename in files:
+            with open(dir + filename, 'r') as cur_file:
+                cur_contents = cur_file.read()
+                list_of_contents.append(cur_contents)
+
+        return list_of_contents
+
+    def add_and_write_file_to_dir(self, contents):
+        open_file = FileHandler(self.filename)
+        file = open_file.pcall(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w')
+        file.write(contents)
+        # Or like this? :D
+        #FileHandler(self.filename).pcall(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w').write(contents)
 
 class Student():
     def __init__(self, parameters):
@@ -83,7 +94,7 @@ class Student():
     def write_to_file(self):
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.__generate_filename(self)
-        StudentList().add_student_file(student_in_csv_format, filename)
+        FileHandler(filename).add_and_write_file_to_dir(student_in_csv_format)
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
@@ -326,7 +337,7 @@ def parameter_is_valid(entered_parameter):
         print("Error: " + validation_result.error)
 
 def list_students():
-    raw_list_of_students = StudentList().get_raw_list_of_students()
+    raw_list_of_students = FileHandler(STUDENT_LIST_DIR_ABSOLUTE_PATH).get_contents_of_all_files_in_dir()
 
     if list_of_students_is_empty(raw_list_of_students):
         print('There are no students in the list.')
