@@ -4,6 +4,7 @@ import os
 
 # NOTE: The absolute path is used for compatibility with Windows.
 STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
+SUBJECTS_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'subjects/')
 
 # TODO: Implement class Subject() and corresponding csv files for each subject.
 
@@ -15,7 +16,6 @@ STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 class FileHandler():
     error = '<N/A>'
 
-    # NOTE: A directory is also a file, i.e. `filename` could be a name of a directory.
     def __init__(self, filename):
         self.filename = filename
 
@@ -23,10 +23,11 @@ class FileHandler():
         try:
             return func(*args)
 
+        # BUG: doesn't make a distinction between a file and a directory, therefore breaks.
         except FileNotFoundError:
             # NOTE: `except RecursionError as e` will handle the
             # infinite recursion in case this function fails.
-            FileHandler.__create_dir_if_nonexistent(self)
+            FileHandler.create_dir_if_nonexistent(self)
             FileHandler(self.filename)(self, func, *args, **kwargs)
 
         except RecursionError as e:
@@ -41,16 +42,17 @@ class FileHandler():
             FileHandler.error = e
             FileHandler.__exit_with_error()
 
-    def __create_dir_if_nonexistent(self):
-        if not os.path.exists(self.filename):
+    def create_dir_if_nonexistent(self):
+        is_dir = ('/' or '\\') in self.filename
+        if is_dir and not os.path.exists(self.filename):
             os.makedirs(self.filename)
 
     @staticmethod
     def __exit_with_error():
         sys.exit(f'ERROR: {FileHandler.error}')
 
-    def get_list_of_files_sorted_by_date_from_dir(self):
-        dir = self.filename
+    @staticmethod
+    def get_list_of_files_sorted_by_date_from_dir(dir):
         dir_handler = FileHandler(dir)
         dir_handler(os.chdir, dir) 
         list_of_files = os.listdir(dir)
@@ -58,9 +60,9 @@ class FileHandler():
 
         return list_of_files
 
-    def get_contents_of_all_files_in_dir(self):
-        dir = self.filename
-        files = FileHandler(dir).get_list_of_files_sorted_by_date_from_dir()
+    @staticmethod
+    def get_contents_of_all_files_in_dir(dir):
+        files = FileHandler.get_list_of_files_sorted_by_date_from_dir(dir)
         list_of_contents = []
 
         for filename in files:
@@ -70,12 +72,33 @@ class FileHandler():
 
         return list_of_contents
 
-    def add_and_write_file_to_dir(self, contents):
+    def add_and_write_file_to_dir(self, dir, contents):
         file_handler = FileHandler(self.filename)
-        file = file_handler(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w')
+        full_path = str(dir + self.filename)
+        file = file_handler(open, full_path, 'w')
         file.write(contents)
         # Or like this? :D
         #FileHandler(self.filename).pcall(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w').write(contents)
+
+class Subjects():
+    def __init__(self, subjects):
+        self.subject = subjects
+
+    # TODO: Call it somewhere.
+    def generate_files(self):
+        for key, values in self.subject.items():
+            filename = key + '.csv'
+            values_in_csv_format = Subjects.__get_in_csv_format(self, values)
+            #FileHandler(SUBJECTS_DIR_ABSOLUTE_PATH).create_dir_if_nonexistent()
+            FileHandler(filename).add_and_write_file_to_dir(SUBJECTS_DIR_ABSOLUTE_PATH, values_in_csv_format)
+
+    def __get_in_csv_format(self, values):
+        values_no_braces = str(values).replace('{','').replace('}','')
+        # NOTE: Two `replace()` are necessary in case formatting of declaring `subjects` 
+        # changes, e.g. some single quotes are replaced with double quotes.
+        values_single_quotes = values_no_braces.replace('"',"'").replace("'", '"')
+        values_in_csv_format = values_single_quotes.replace(': ',':')
+        return values_in_csv_format
 
 class Student():
     def __init__(self, parameters):
@@ -98,7 +121,7 @@ class Student():
     def write_to_file(self):
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.__generate_filename(self)
-        FileHandler(filename).add_and_write_file_to_dir(student_in_csv_format)
+        FileHandler(filename).add_and_write_file_to_dir(STUDENT_LIST_DIR_ABSOLUTE_PATH, student_in_csv_format)
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
@@ -240,7 +263,7 @@ def main():
         select_action()
 
 def initialisation():
-    global required_parameters, actions
+    global required_student_parameters, actions, subjects
     actions = [ 
         { 'description':'Quit',                          'function':quit },
         { 'description':'Add a new students',            'function':add_student },
@@ -250,11 +273,19 @@ def initialisation():
         { 'description':'List all students by subjects', 'function':list_students_by_subjects }
     ]
 
-    required_parameters = {
+    required_student_parameters = {
         'first_name': { 'name':'first name', 'type':'string', 'restrictions':[ 'non-empty' ] },\
         'last_name':  { 'name':'last name',  'type':'string', 'restrictions':[ 'non-empty' ] }, \
         'age':        { 'name':'age',        'type':'number', 'restrictions':[ 'integer', 'positive' ] }, \
         'gender':     { 'name':'gender',     'type':'string', 'restrictions':[ 'non-empty' ], 'options':[ 'male', 'female' ] } \
+    }
+
+    subjects = {
+        'econ':    { 'name':'Economics',           'teacher':'Mr. Cameron Dron' }, \
+        'p_maths': { 'name':'Pure Mathematics',    'teacher':'Mrs. Mojgan Estafani' }, \
+        'a_maths': { 'name':'Applied Mathematics', 'teacher':'Mr. Richard Milner' }, \
+        'eng':     { 'name':'English Language',    'teacher':'Mrs. Kira Ivanovna' }, \
+        'cs':      { 'name':'Computer Science',    'teacher':'Mr. Anton Aleksandrovich' }, \
     }
 
 def print_actions():
@@ -286,8 +317,8 @@ def action_is_valid(selected_action):
 def add_student():
     student_parameters = {}
 
-    for i_parameter in required_parameters:
-        parameter = required_parameters[ i_parameter ]
+    for i_parameter in required_student_parameters:
+        parameter = required_student_parameters[ i_parameter ]
         student_parameters[ i_parameter ] = prompt_parameter_until_valid(parameter)
 
     student = Student(student_parameters)
@@ -341,7 +372,7 @@ def parameter_is_valid(entered_parameter):
         print("Error: " + validation_result.error)
 
 def list_students():
-    raw_list_of_students = FileHandler(STUDENT_LIST_DIR_ABSOLUTE_PATH).get_contents_of_all_files_in_dir()
+    raw_list_of_students = FileHandler.get_contents_of_all_files_in_dir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
 
     if list_of_students_is_empty(raw_list_of_students):
         print('There are no students in the list.')
@@ -380,14 +411,14 @@ def print_parameter(str_raw_parameter):
     key = key_value_pair[ 0 ].replace('"', '')
     value = key_value_pair[ 1 ].replace('"', '')
 
-    for req_parameter_key in required_parameters.keys():
+    for req_parameter_key in required_student_parameters.keys():
         parameter_name = get_parameter_name_by_matching_keys(key, req_parameter_key)
         if parameter_name != None:
             print_formatted_student_parameter(parameter_name, value)
 
 def get_parameter_name_by_matching_keys(key, req_parameter_key):
     if key == req_parameter_key:
-        parameter_name = required_parameters[ req_parameter_key ][ 'name' ].capitalize()
+        parameter_name = required_student_parameters[ req_parameter_key ][ 'name' ].capitalize()
         return parameter_name
     else:
         # WONTFIX: this function is intended to be used only in
