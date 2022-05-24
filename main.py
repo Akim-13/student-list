@@ -13,46 +13,50 @@ STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 # ...
 
 class FileHandler():
-    # NOTE: Directory is also a file, i.e. `filename` could be a name of a directory.
+    error = '<N/A>'
+
+    # NOTE: A directory is also a file, i.e. `filename` could be a name of a directory.
     def __init__(self, filename):
         self.filename = filename
 
-    def get_list_of_files_sorted_by_date_from_dir(self):
-        dir = self.filename
-        FileHandler(dir).pcall(os.chdir, dir) 
-        list_of_files = os.listdir(dir)
-        list_of_files.sort(key = os.path.getmtime)
-
-        return list_of_files
-
-    # EXPERIMENTAL: protected call.
-    def pcall(self, func, *args, **kwargs):
+    def __call__(self, func, *args, **kwargs):
         try:
             return func(*args)
 
-        except FileNotFoundError as e:
+        except FileNotFoundError:
+            # NOTE: `except RecursionError as e` will handle the
+            # infinite recursion in case this function fails.
             FileHandler.__create_dir_if_nonexistent(self)
-            # HACK: The following is to prevent infinite recursion 
-            # in case `__create_dir_if_nonexistent(...)` fails.
-            try:
-                FileHandler.pcall(self, func, *args, **kwargs)
-            except RecursionError:
-                FileHandler.__exit_with_error(e)
+            FileHandler(self.filename)(self, func, *args, **kwargs)
+
+        except RecursionError as e:
+            e = str(e)
+            e += f'.\nThis error most likely occurred because "{self.filename}" does not exist and cannot be created.'
+            FileHandler.error = e
+            FileHandler.__exit_with_error()
 
         except PermissionError as e:
-            FileHandler.__exit_with_error(e)
-
-        except:
-            error = f'ERROR: {sys.exc_info()[1]}'
-            FileHandler.__exit_with_error(error)
+            e = str(e)
+            e += f'.\nMake the directory modifiable or grant this script the permission to modify it.'
+            FileHandler.error = e
+            FileHandler.__exit_with_error()
 
     def __create_dir_if_nonexistent(self):
         if not os.path.exists(self.filename):
             os.makedirs(self.filename)
 
     @staticmethod
-    def __exit_with_error(error):
-        sys.exit(error)
+    def __exit_with_error():
+        sys.exit(f'ERROR: {FileHandler.error}')
+
+    def get_list_of_files_sorted_by_date_from_dir(self):
+        dir = self.filename
+        dir_handler = FileHandler(dir)
+        dir_handler(os.chdir, dir) 
+        list_of_files = os.listdir(dir)
+        list_of_files.sort(key = os.path.getmtime)
+
+        return list_of_files
 
     def get_contents_of_all_files_in_dir(self):
         dir = self.filename
@@ -67,8 +71,8 @@ class FileHandler():
         return list_of_contents
 
     def add_and_write_file_to_dir(self, contents):
-        open_file = FileHandler(self.filename)
-        file = open_file.pcall(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w')
+        file_handler = FileHandler(self.filename)
+        file = file_handler(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w')
         file.write(contents)
         # Or like this? :D
         #FileHandler(self.filename).pcall(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w').write(contents)
