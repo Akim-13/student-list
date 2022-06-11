@@ -2,7 +2,9 @@ import logging
 import sys
 import os
 
+# NOTE: The absolute path is used for compatibility with Windows.
 STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
+SUBJECTS_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'subjects/')
 
 # TODO: Implement class Subject() and corresponding csv files for each subject.
 
@@ -11,56 +13,126 @@ STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
 # student5.csv, subject1.csv, subject2.csv
 # ...
 
-class StudentList():
-    def get_raw_list_of_students(self):
+class FileHandler():
+    error = '<N/A>'
+
+    def __init__(self, filename, dir):
+        self.filename = filename
+        self.dir = dir
+
+    def __call__(self, func, *args, **kwargs):
         try:
-            self.students = StudentList.__read_each_file(self)
-            return self.students
+            return func(*args)
+
         except FileNotFoundError:
-            StudentList.__create_dir_if_nonexistent(self)
-            StudentList.get_raw_list_of_students(self)
-        except:
-            StudentList.__exit_with_error()
+            # NOTE: `except RecursionError as e` will handle the
+            # infinite recursion in case this function fails.
+            FileHandler.create_dir_if_nonexistent(self)
+            FileHandler(self.filename, self.dir)(self, func, *args, **kwargs)
 
-    def __read_each_file(self):
-        # HACK: self.students doesn't work, so using a local list instead.
-        students = []
+        except RecursionError as e:
+            e = str(e)
+            e += f'.\nThis error most likely occurred because "{self.filename}" does not exist and cannot be created.'
+            FileHandler.error = e
+            FileHandler.__exit_with_error()
 
-        student_files = StudentList.__get_sorted_list_of_files()
-        for student_file in student_files:
-            with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + student_file, 'r') as self.cur_student_file:
-                student = self.cur_student_file.read()
-                # QUESTION: why doesn't self.students.append(...) work?
-                students.append(student)
+        except PermissionError as e:
+            e = str(e)
+            e += f'.\nMake the directory modifiable or grant this script the permission to modify it.'
+            FileHandler.error = e
+            FileHandler.__exit_with_error()
 
-        return students
-
-    @staticmethod
-    def __get_sorted_list_of_files():
-        os.chdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
-        student_files = os.listdir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
-        # NOTE: Sort the list of files by date. 
-        student_files.sort(key = os.path.getmtime)
-
-        return student_files
-
-    def __create_dir_if_nonexistent(self):
-        if not os.path.exists(STUDENT_LIST_DIR_ABSOLUTE_PATH):
-            os.makedirs(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+    def create_dir_if_nonexistent(self):
+        if not os.path.exists(self.dir):
+            os.makedirs(self.dir)
 
     @staticmethod
     def __exit_with_error():
-        sys.exit(f'ERROR: cannot access or modify "{STUDENT_LIST_DIR_ABSOLUTE_PATH}" directory.')
+        sys.exit(f'ERROR: {FileHandler.error}')
 
-    def add_student_file(self, student, filename):
-        try: 
-            with open(STUDENT_LIST_DIR_ABSOLUTE_PATH + filename, 'w') as self.cur_student_file:
-                self.cur_student_file.write(student)
-        except FileNotFoundError:
-            StudentList.__create_dir_if_nonexistent(self)
-            StudentList.add_student_file(self, student, filename)
-        except:
-            StudentList.__exit_with_error()
+    def get_list_of_files_sorted_by_date_from_dir(self):
+        dir_handler = FileHandler(None, self.dir)
+        dir_handler(os.chdir, self.dir) 
+        list_of_files = os.listdir(self.dir)
+        list_of_files.sort(key = os.path.getmtime)
+
+        return list_of_files
+
+    def get_contents_of_all_files_in_dir(self):
+        files = FileHandler(None, self.dir).get_list_of_files_sorted_by_date_from_dir()
+        list_of_contents = []
+
+        for filename in files:
+            with open(self.dir + filename, 'r') as cur_file:
+                cur_contents = cur_file.read()
+                list_of_contents.append(cur_contents)
+
+        return list_of_contents
+
+    def add_and_write_file_to_dir(self, contents):
+        file_handler = FileHandler(self.filename, self.dir)
+        file_handler.create_dir_if_nonexistent()
+        full_path = str(self.dir + self.filename)
+        file = file_handler(open, full_path, 'w')
+        file.write(contents)
+
+class Subjects():
+    def __init__(self, subjects):
+        self.subjects = subjects
+
+    def generate_files(self):
+        for key, values in self.subjects.items():
+            filename = key + '.csv'
+            values_in_csv_format = Subjects.__get_in_csv_format(self, values)
+            FileHandler(filename, SUBJECTS_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(values_in_csv_format)
+            print(f'Successfully generated "{SUBJECTS_DIR_ABSOLUTE_PATH}{filename}".')
+
+    def list_all(self):
+        subjects = Subjects.get_dict_of_subjects_from_files_in_dir(self)
+        cnt = 1
+        for subject in subjects.values():
+            print(f'{cnt}) ', end='')
+            i = 1
+            for parameter in subject.values():
+                is_last_iteration = i==len(subject.values())
+                if not is_last_iteration:
+                    print(f'{parameter}', end=', ')
+                else:
+                    print(f'{parameter}')
+                i += 1
+            cnt += 1
+
+    def get_dict_of_subjects_from_files_in_dir(self):
+        cnt = 0
+
+        file_handler = FileHandler(None, SUBJECTS_DIR_ABSOLUTE_PATH)
+        subject_files_contents = file_handler.get_contents_of_all_files_in_dir()
+        list_of_subject_files = file_handler.get_list_of_files_sorted_by_date_from_dir()
+
+        num_of_parameters = len(subject_files_contents[cnt].split(', '))
+        keys = [ filename.replace('.csv', '') for filename in list_of_subject_files ]
+
+        for key in keys:
+            subject = {}
+
+            for i in range(num_of_parameters):
+                cur_param = subject_files_contents[cnt].replace('"', '').split(', ')[i].split(':')
+                subject[cur_param[0]] = cur_param[1]
+
+            subjects[key] = subject
+            cnt += 1
+
+        return subjects
+
+    def __print_subject(self, subject):
+        print(subject['name'])
+
+
+    def __get_in_csv_format(self, values):
+        values_no_braces = str(values).replace('{','').replace('}','')
+        values_single_quotes = values_no_braces.replace('"',"'").replace("'", '"')
+        values_in_csv_format = values_single_quotes.replace(': ',':')
+        return values_in_csv_format
 
 class Student():
     def __init__(self, parameters):
@@ -83,7 +155,7 @@ class Student():
     def write_to_file(self):
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.__generate_filename(self)
-        StudentList().add_student_file(student_in_csv_format, filename)
+        FileHandler(filename, STUDENT_LIST_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(student_in_csv_format)
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
@@ -225,17 +297,27 @@ def main():
         select_action()
 
 def initialisation():
-    global required_parameters, actions
+    global required_student_parameters, actions, subjects
+
+    subjects = {
+        'econ':    { 'name':'Economics',           'teacher':'Mr. Cameron Dron' }, \
+        'p_maths': { 'name':'Pure Mathematics',    'teacher':'Mrs. Mojgan Estafani' }, \
+        'a_maths': { 'name':'Applied Mathematics', 'teacher':'Mr. Richard Milner' }, \
+        'eng':     { 'name':'English Language',    'teacher':'Mrs. Kira Ivanovna' }, \
+        'cs':      { 'name':'Computer Science',    'teacher':'Mr. Anton Aleksandrovich' }, \
+    }
+
     actions = [ 
         { 'description':'Quit',                          'function':quit },
         { 'description':'Add a new students',            'function':add_student },
         { 'description':'List all students',             'function':list_students },
         { 'description':'Edit an existing student',      'function':edit_student },
-        { 'description':'List all subjects',             'function':list_subjects },
-        { 'description':'List all students by subjects', 'function':list_students_by_subjects }
+        { 'description':'List all subjects',             'function':Subjects(subjects).list_all },
+        { 'description':'List all students by subjects', 'function':list_students_by_subjects },
+        { 'description':'Generate subject files',        'function':Subjects(subjects).generate_files }
     ]
 
-    required_parameters = {
+    required_student_parameters = {
         'first_name': { 'name':'first name', 'type':'string', 'restrictions':[ 'non-empty' ] },\
         'last_name':  { 'name':'last name',  'type':'string', 'restrictions':[ 'non-empty' ] }, \
         'age':        { 'name':'age',        'type':'number', 'restrictions':[ 'integer', 'positive' ] }, \
@@ -271,8 +353,8 @@ def action_is_valid(selected_action):
 def add_student():
     student_parameters = {}
 
-    for i_parameter in required_parameters:
-        parameter = required_parameters[ i_parameter ]
+    for i_parameter in required_student_parameters:
+        parameter = required_student_parameters[ i_parameter ]
         student_parameters[ i_parameter ] = prompt_parameter_until_valid(parameter)
 
     student = Student(student_parameters)
@@ -326,7 +408,7 @@ def parameter_is_valid(entered_parameter):
         print("Error: " + validation_result.error)
 
 def list_students():
-    raw_list_of_students = StudentList().get_raw_list_of_students()
+    raw_list_of_students = FileHandler(None, STUDENT_LIST_DIR_ABSOLUTE_PATH).get_contents_of_all_files_in_dir()
 
     if list_of_students_is_empty(raw_list_of_students):
         print('There are no students in the list.')
@@ -365,14 +447,14 @@ def print_parameter(str_raw_parameter):
     key = key_value_pair[ 0 ].replace('"', '')
     value = key_value_pair[ 1 ].replace('"', '')
 
-    for req_parameter_key in required_parameters.keys():
+    for req_parameter_key in required_student_parameters.keys():
         parameter_name = get_parameter_name_by_matching_keys(key, req_parameter_key)
         if parameter_name != None:
             print_formatted_student_parameter(parameter_name, value)
 
 def get_parameter_name_by_matching_keys(key, req_parameter_key):
     if key == req_parameter_key:
-        parameter_name = required_parameters[ req_parameter_key ][ 'name' ].capitalize()
+        parameter_name = required_student_parameters[ req_parameter_key ][ 'name' ].capitalize()
         return parameter_name
     else:
         # WONTFIX: this function is intended to be used only in
