@@ -280,15 +280,19 @@ class Validator():
             self.error = 'The value is not positive'
 
     def __validate_options(self):
-        value_found = False
+        # FEATURE: Yes, this does in fact allow to have a student who is male
+        # and female simultaneously. Blame society, not the programmer.
+        result = str(self.result).split(', ')
+        for cur in result:
 
-        for option in self.options:
-            if option == self.result:
-                value_found = True
+            cur_is_valid = False
+            for option in self.options:
+                if option == cur:
+                    cur_is_valid = True
 
-        if not value_found:
-            self.error = 'The value was not found in the list of valid options'
-            self.valid = False
+            if not cur_is_valid:
+                self.error = 'The value was not found in the list of valid options'
+                self.valid = False
 
 def main():
     initialisation()
@@ -321,7 +325,8 @@ def initialisation():
         'first_name': { 'name':'first name', 'type':'string', 'restrictions':[ 'non-empty' ] },\
         'last_name':  { 'name':'last name',  'type':'string', 'restrictions':[ 'non-empty' ] }, \
         'age':        { 'name':'age',        'type':'number', 'restrictions':[ 'integer', 'positive' ] }, \
-        'gender':     { 'name':'gender',     'type':'string', 'restrictions':[ 'non-empty' ], 'options':[ 'male', 'female' ] } \
+        'gender':     { 'name':'gender',     'type':'string', 'restrictions':[ 'non-empty' ], 'options':[ 'male', 'female' ] }, \
+        'subjects':   { 'name':'subjects',   'type':'string', 'restrictions':[], 'options':[ subject['name'] for subject in subjects.values() ] } \
     }
 
 def print_actions():
