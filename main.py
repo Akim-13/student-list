@@ -78,19 +78,58 @@ class FileHandler():
 
 class Subjects():
     def __init__(self, subjects):
-        self.subject = subjects
+        self.subjects = subjects
 
-    # TODO: Call it somewhere.
     def generate_files(self):
-        for key, values in self.subject.items():
+        for key, values in self.subjects.items():
             filename = key + '.csv'
             values_in_csv_format = Subjects.__get_in_csv_format(self, values)
             FileHandler(filename, SUBJECTS_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(values_in_csv_format)
+            print(f'Successfully generated "{SUBJECTS_DIR_ABSOLUTE_PATH}{filename}".')
+
+    def list_all(self):
+        subjects = Subjects.get_dict_of_subjects_from_files_in_dir(self)
+        cnt = 1
+        for subject in subjects.values():
+            print(f'{cnt}) ', end='')
+            i = 1
+            for parameter in subject.values():
+                is_last_iteration = i==len(subject.values())
+                if not is_last_iteration:
+                    print(f'{parameter}', end=', ')
+                else:
+                    print(f'{parameter}')
+                i += 1
+            cnt += 1
+
+    def get_dict_of_subjects_from_files_in_dir(self):
+        cnt = 0
+
+        file_handler = FileHandler(None, SUBJECTS_DIR_ABSOLUTE_PATH)
+        subject_files_contents = file_handler.get_contents_of_all_files_in_dir()
+        list_of_subject_files = file_handler.get_list_of_files_sorted_by_date_from_dir()
+
+        num_of_parameters = len(subject_files_contents[cnt].split(', '))
+        keys = [ filename.replace('.csv', '') for filename in list_of_subject_files ]
+
+        for key in keys:
+            subject = {}
+
+            for i in range(num_of_parameters):
+                cur_param = subject_files_contents[cnt].replace('"', '').split(', ')[i].split(':')
+                subject[cur_param[0]] = cur_param[1]
+
+            subjects[key] = subject
+            cnt += 1
+
+        return subjects
+
+    def __print_subject(self, subject):
+        print(subject['name'])
+
 
     def __get_in_csv_format(self, values):
         values_no_braces = str(values).replace('{','').replace('}','')
-        # NOTE: Two `replace()` are necessary in case formatting of declaring `subjects` 
-        # changes, e.g. some single quotes are replaced with double quotes.
         values_single_quotes = values_no_braces.replace('"',"'").replace("'", '"')
         values_in_csv_format = values_single_quotes.replace(': ',':')
         return values_in_csv_format
@@ -259,21 +298,6 @@ def main():
 
 def initialisation():
     global required_student_parameters, actions, subjects
-    actions = [ 
-        { 'description':'Quit',                          'function':quit },
-        { 'description':'Add a new students',            'function':add_student },
-        { 'description':'List all students',             'function':list_students },
-        { 'description':'Edit an existing student',      'function':edit_student },
-        { 'description':'List all subjects',             'function':list_subjects },
-        { 'description':'List all students by subjects', 'function':list_students_by_subjects }
-    ]
-
-    required_student_parameters = {
-        'first_name': { 'name':'first name', 'type':'string', 'restrictions':[ 'non-empty' ] },\
-        'last_name':  { 'name':'last name',  'type':'string', 'restrictions':[ 'non-empty' ] }, \
-        'age':        { 'name':'age',        'type':'number', 'restrictions':[ 'integer', 'positive' ] }, \
-        'gender':     { 'name':'gender',     'type':'string', 'restrictions':[ 'non-empty' ], 'options':[ 'male', 'female' ] } \
-    }
 
     subjects = {
         'econ':    { 'name':'Economics',           'teacher':'Mr. Cameron Dron' }, \
@@ -281,6 +305,23 @@ def initialisation():
         'a_maths': { 'name':'Applied Mathematics', 'teacher':'Mr. Richard Milner' }, \
         'eng':     { 'name':'English Language',    'teacher':'Mrs. Kira Ivanovna' }, \
         'cs':      { 'name':'Computer Science',    'teacher':'Mr. Anton Aleksandrovich' }, \
+    }
+
+    actions = [ 
+        { 'description':'Quit',                          'function':quit },
+        { 'description':'Add a new students',            'function':add_student },
+        { 'description':'List all students',             'function':list_students },
+        { 'description':'Edit an existing student',      'function':edit_student },
+        { 'description':'List all subjects',             'function':Subjects(subjects).list_all },
+        { 'description':'List all students by subjects', 'function':list_students_by_subjects },
+        { 'description':'Generate subject files',        'function':Subjects(subjects).generate_files }
+    ]
+
+    required_student_parameters = {
+        'first_name': { 'name':'first name', 'type':'string', 'restrictions':[ 'non-empty' ] },\
+        'last_name':  { 'name':'last name',  'type':'string', 'restrictions':[ 'non-empty' ] }, \
+        'age':        { 'name':'age',        'type':'number', 'restrictions':[ 'integer', 'positive' ] }, \
+        'gender':     { 'name':'gender',     'type':'string', 'restrictions':[ 'non-empty' ], 'options':[ 'male', 'female' ] } \
     }
 
 def print_actions():
