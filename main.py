@@ -3,8 +3,11 @@ import sys
 import os
 
 # NOTE: The absolute path is used for compatibility with Windows.
-STUDENT_LIST_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'student_list/')
-SUBJECTS_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'subjects/')
+print(os.getcwd())
+CURRENT_PATH = os.getcwd() + '/'
+STUDENT_LIST_DIR_ABSOLUTE_PATH = CURRENT_PATH + 'student_list/'
+SUBJECTS_DIR_ABSOLUTE_PATH = CURRENT_PATH + 'subjects/'
+RELATIONAL_DB_PATH = CURRENT_PATH + 'relational_db/'
 
 # TODO: Implement class Subject() and corresponding csv files for each subject.
 
@@ -69,11 +72,11 @@ class FileHandler():
 
         return list_of_contents
 
-    def add_and_write_file_to_dir(self, contents):
+    def add_and_write_file_to_dir(self, contents, mode):
         file_handler = FileHandler(self.filename, self.dir)
         file_handler.create_dir_if_nonexistent()
         full_path = str(self.dir + self.filename)
-        file = file_handler(open, full_path, 'w')
+        file = file_handler(open, full_path, f'{mode}')
         file.write(contents)
 
 class Subjects():
@@ -84,7 +87,7 @@ class Subjects():
         for key, values in self.subjects.items():
             filename = key + '.csv'
             values_in_csv_format = Subjects.__get_in_csv_format(self, values)
-            FileHandler(filename, SUBJECTS_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(values_in_csv_format)
+            FileHandler(filename, SUBJECTS_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(values_in_csv_format, 'w')
             print(f'Successfully generated "{SUBJECTS_DIR_ABSOLUTE_PATH}{filename}".')
 
     def list_all(self):
@@ -136,6 +139,8 @@ class Subjects():
 
 class Student():
     def __init__(self, parameters):
+        self.subjects = [parameters['subjects']]
+        del parameters['subjects']
         self.parameters = parameters
 
     def get_parameter(self, parameter_name):
@@ -152,10 +157,19 @@ class Student():
         else:
             return False
 
+    def __write_to_relational_db(self):
+        files = FileHandler(None, STUDENT_LIST_DIR_ABSOLUTE_PATH).get_list_of_files_sorted_by_date_from_dir()
+        student_id = len(files) + 1
+        for subject in self.subjects:
+            logging.debug(f'Subjects {self.subjects}')
+            relation = f'{student_id} {subject}\n'
+            FileHandler('student_subject.csv', RELATIONAL_DB_PATH).add_and_write_file_to_dir(relation, 'a')
+
     def write_to_file(self):
+        Student.__write_to_relational_db(self)
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.__generate_filename(self)
-        FileHandler(filename, STUDENT_LIST_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(student_in_csv_format)
+        FileHandler(filename, STUDENT_LIST_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(student_in_csv_format, 'w')
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
