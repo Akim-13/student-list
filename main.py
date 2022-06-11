@@ -16,19 +16,19 @@ SUBJECTS_DIR_ABSOLUTE_PATH = os.path.join(sys.path[ 0 ], 'subjects/')
 class FileHandler():
     error = '<N/A>'
 
-    def __init__(self, filename):
+    def __init__(self, filename, dir):
         self.filename = filename
+        self.dir = dir
 
     def __call__(self, func, *args, **kwargs):
         try:
             return func(*args)
 
-        # BUG: doesn't make a distinction between a file and a directory, therefore breaks.
         except FileNotFoundError:
             # NOTE: `except RecursionError as e` will handle the
             # infinite recursion in case this function fails.
             FileHandler.create_dir_if_nonexistent(self)
-            FileHandler(self.filename)(self, func, *args, **kwargs)
+            FileHandler(self.filename, self.dir)(self, func, *args, **kwargs)
 
         except RecursionError as e:
             e = str(e)
@@ -43,42 +43,38 @@ class FileHandler():
             FileHandler.__exit_with_error()
 
     def create_dir_if_nonexistent(self):
-        is_dir = ('/' or '\\') in self.filename
-        if is_dir and not os.path.exists(self.filename):
-            os.makedirs(self.filename)
+        if not os.path.exists(self.dir):
+            os.makedirs(self.dir)
 
     @staticmethod
     def __exit_with_error():
         sys.exit(f'ERROR: {FileHandler.error}')
 
-    @staticmethod
-    def get_list_of_files_sorted_by_date_from_dir(dir):
-        dir_handler = FileHandler(dir)
-        dir_handler(os.chdir, dir) 
-        list_of_files = os.listdir(dir)
+    def get_list_of_files_sorted_by_date_from_dir(self):
+        dir_handler = FileHandler(None, self.dir)
+        dir_handler(os.chdir, self.dir) 
+        list_of_files = os.listdir(self.dir)
         list_of_files.sort(key = os.path.getmtime)
 
         return list_of_files
 
-    @staticmethod
-    def get_contents_of_all_files_in_dir(dir):
-        files = FileHandler.get_list_of_files_sorted_by_date_from_dir(dir)
+    def get_contents_of_all_files_in_dir(self):
+        files = FileHandler(None, self.dir).get_list_of_files_sorted_by_date_from_dir()
         list_of_contents = []
 
         for filename in files:
-            with open(dir + filename, 'r') as cur_file:
+            with open(self.dir + filename, 'r') as cur_file:
                 cur_contents = cur_file.read()
                 list_of_contents.append(cur_contents)
 
         return list_of_contents
 
-    def add_and_write_file_to_dir(self, dir, contents):
-        file_handler = FileHandler(self.filename)
-        full_path = str(dir + self.filename)
+    def add_and_write_file_to_dir(self, contents):
+        file_handler = FileHandler(self.filename, self.dir)
+        file_handler.create_dir_if_nonexistent()
+        full_path = str(self.dir + self.filename)
         file = file_handler(open, full_path, 'w')
         file.write(contents)
-        # Or like this? :D
-        #FileHandler(self.filename).pcall(open, STUDENT_LIST_DIR_ABSOLUTE_PATH + self.filename, 'w').write(contents)
 
 class Subjects():
     def __init__(self, subjects):
@@ -89,8 +85,7 @@ class Subjects():
         for key, values in self.subject.items():
             filename = key + '.csv'
             values_in_csv_format = Subjects.__get_in_csv_format(self, values)
-            #FileHandler(SUBJECTS_DIR_ABSOLUTE_PATH).create_dir_if_nonexistent()
-            FileHandler(filename).add_and_write_file_to_dir(SUBJECTS_DIR_ABSOLUTE_PATH, values_in_csv_format)
+            FileHandler(filename, SUBJECTS_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(values_in_csv_format)
 
     def __get_in_csv_format(self, values):
         values_no_braces = str(values).replace('{','').replace('}','')
@@ -121,7 +116,7 @@ class Student():
     def write_to_file(self):
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.__generate_filename(self)
-        FileHandler(filename).add_and_write_file_to_dir(STUDENT_LIST_DIR_ABSOLUTE_PATH, student_in_csv_format)
+        FileHandler(filename, STUDENT_LIST_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(student_in_csv_format)
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
@@ -372,7 +367,7 @@ def parameter_is_valid(entered_parameter):
         print("Error: " + validation_result.error)
 
 def list_students():
-    raw_list_of_students = FileHandler.get_contents_of_all_files_in_dir(STUDENT_LIST_DIR_ABSOLUTE_PATH)
+    raw_list_of_students = FileHandler(None, STUDENT_LIST_DIR_ABSOLUTE_PATH).get_contents_of_all_files_in_dir()
 
     if list_of_students_is_empty(raw_list_of_students):
         print('There are no students in the list.')
