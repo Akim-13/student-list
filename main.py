@@ -3,19 +3,16 @@ import sys
 import os
 
 # NOTE: The absolute path is used for compatibility with Windows.
-CURRENT_PATH = os.getcwd() + '/'
-STUDENT_LIST_DIR_ABSOLUTE_PATH = CURRENT_PATH + 'student_list/'
-SUBJECTS_DIR_ABSOLUTE_PATH = CURRENT_PATH + 'subjects/'
+CURRENT_PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
+STUDENT_LIST_PATH = CURRENT_PATH + 'student_list/'
+SUBJECTS_PATH = CURRENT_PATH + 'subjects/'
+RELATIONAL_DB = 'student_subject.csv'
 RELATIONAL_DB_PATH = CURRENT_PATH + 'relational_db/'
 
-# TODO: Implement class Subject() and corresponding csv files for each subject.
+# TODO: To edit a student, use add_student with the same
+# name and last name to overwrite the existing file.
 
-# TODO: Link students and subjects by creating one relational file.csv:
-# student1.csv, subject2.csv, subject3.csv, subject6.csv
-# student5.csv, subject1.csv, subject2.csv
-# ...
-
-class FileHandler():
+class FileDirHandler():
     error = '<N/A>'
 
     def __init__(self, filename, dir):
@@ -29,20 +26,20 @@ class FileHandler():
         except FileNotFoundError:
             # NOTE: `except RecursionError as e` will handle the
             # infinite recursion in case this function fails.
-            FileHandler.create_dir_if_nonexistent(self)
-            FileHandler(self.filename, self.dir)(self, func, *args, **kwargs)
+            FileDirHandler.create_dir_if_nonexistent(self)
+            FileDirHandler(self.filename, self.dir)(self, func, *args, **kwargs)
 
         except RecursionError as e:
             e = str(e)
             e += f'.\nThis error most likely occurred because "{self.filename}" does not exist and cannot be created.'
-            FileHandler.error = e
-            FileHandler.__exit_with_error()
+            FileDirHandler.error = e
+            FileDirHandler.__exit_with_error()
 
         except PermissionError as e:
             e = str(e)
             e += f'.\nMake the directory modifiable or grant this script the permission to modify it.'
-            FileHandler.error = e
-            FileHandler.__exit_with_error()
+            FileDirHandler.error = e
+            FileDirHandler.__exit_with_error()
 
     def create_dir_if_nonexistent(self):
         if not os.path.exists(self.dir):
@@ -50,10 +47,10 @@ class FileHandler():
 
     @staticmethod
     def __exit_with_error():
-        sys.exit(f'ERROR: {FileHandler.error}')
+        sys.exit(f'ERROR: {FileDirHandler.error}')
 
     def get_list_of_files_sorted_by_date_from_dir(self):
-        dir_handler = FileHandler(None, self.dir)
+        dir_handler = FileDirHandler(None, self.dir)
         dir_handler(os.chdir, self.dir) 
         list_of_files = os.listdir(self.dir)
         list_of_files.sort(key = os.path.getmtime)
@@ -61,7 +58,7 @@ class FileHandler():
         return list_of_files
 
     def get_contents_of_all_files_in_dir(self):
-        files = FileHandler(None, self.dir).get_list_of_files_sorted_by_date_from_dir()
+        files = FileDirHandler(None, self.dir).get_list_of_files_sorted_by_date_from_dir()
         list_of_contents = []
 
         for filename in files:
@@ -72,7 +69,7 @@ class FileHandler():
         return list_of_contents
 
     def add_and_write_file_to_dir(self, contents, mode):
-        file_handler = FileHandler(self.filename, self.dir)
+        file_handler = FileDirHandler(self.filename, self.dir)
         file_handler.create_dir_if_nonexistent()
         full_path = str(self.dir + self.filename)
         file = file_handler(open, full_path, f'{mode}')
@@ -86,8 +83,8 @@ class Subjects():
         for key, values in self.subjects.items():
             filename = key + '.csv'
             values_in_csv_format = Subjects.__get_in_csv_format(self, values)
-            FileHandler(filename, SUBJECTS_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(values_in_csv_format, 'w')
-            print(f'Successfully generated "{SUBJECTS_DIR_ABSOLUTE_PATH}{filename}".')
+            FileDirHandler(filename, SUBJECTS_PATH).add_and_write_file_to_dir(values_in_csv_format, 'w')
+            print(f'Successfully generated "{SUBJECTS_PATH}{filename}".')
 
     def list_all(self):
         subjects = Subjects.get_dict_of_subjects_from_files_in_dir(self)
@@ -107,7 +104,7 @@ class Subjects():
     def get_dict_of_subjects_from_files_in_dir(self):
         cnt = 0
 
-        file_handler = FileHandler(None, SUBJECTS_DIR_ABSOLUTE_PATH)
+        file_handler = FileDirHandler(None, SUBJECTS_PATH)
         subject_files_contents = file_handler.get_contents_of_all_files_in_dir()
         list_of_subject_files = file_handler.get_list_of_files_sorted_by_date_from_dir()
 
@@ -157,17 +154,17 @@ class Student():
             return False
 
     def __write_to_relational_db(self):
-        files = FileHandler(None, STUDENT_LIST_DIR_ABSOLUTE_PATH).get_list_of_files_sorted_by_date_from_dir()
+        files = FileDirHandler(None, STUDENT_LIST_PATH).get_list_of_files_sorted_by_date_from_dir()
         student_id = len(files) + 1
         for subject in self.subjects:
             student_subject = f'{student_id} {subject}\n'
-            FileHandler('student_subject.csv', RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
+            FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
 
     def write_to_file(self):
         Student.__write_to_relational_db(self)
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.__generate_filename(self)
-        FileHandler(filename, STUDENT_LIST_DIR_ABSOLUTE_PATH).add_and_write_file_to_dir(student_in_csv_format, 'w')
+        FileDirHandler(filename, STUDENT_LIST_PATH).add_and_write_file_to_dir(student_in_csv_format, 'w')
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
@@ -330,7 +327,8 @@ def initialisation():
         { 'description':'Edit an existing student',      'function':edit_student },
         { 'description':'List all subjects',             'function':Subjects(subjects).list_all },
         { 'description':'List all students by subjects', 'function':list_students_by_subjects },
-        { 'description':'Generate subject files',        'function':Subjects(subjects).generate_files }
+        { 'description':'[DEV] Generate subject files',        'function':Subjects(subjects).generate_files },
+        { 'description':'[DEV] Print relational database',     'function':print_relational_db }
     ]
 
     required_student_parameters = {
@@ -425,7 +423,7 @@ def parameter_is_valid(entered_parameter):
         print("Error: " + validation_result.error)
 
 def list_students():
-    raw_list_of_students = FileHandler(None, STUDENT_LIST_DIR_ABSOLUTE_PATH).get_contents_of_all_files_in_dir()
+    raw_list_of_students = FileDirHandler(None, STUDENT_LIST_PATH).get_contents_of_all_files_in_dir()
 
     if list_of_students_is_empty(raw_list_of_students):
         print('There are no students in the list.')
@@ -480,6 +478,10 @@ def get_parameter_name_by_matching_keys(key, req_parameter_key):
 
 def print_formatted_student_parameter(parameter_name, parameter_value):
     print(f'{parameter_name}: {parameter_value}')
+
+def print_relational_db():
+    relational_db = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
+    print(relational_db[0])
 
 # TODO
 def edit_student():
