@@ -3,7 +3,6 @@ import sys
 import os
 
 # NOTE: The absolute path is used for compatibility with Windows.
-print(os.getcwd())
 CURRENT_PATH = os.getcwd() + '/'
 STUDENT_LIST_DIR_ABSOLUTE_PATH = CURRENT_PATH + 'student_list/'
 SUBJECTS_DIR_ABSOLUTE_PATH = CURRENT_PATH + 'subjects/'
@@ -139,7 +138,7 @@ class Subjects():
 
 class Student():
     def __init__(self, parameters):
-        self.subjects = [parameters['subjects']]
+        self.subjects = parameters['subjects'].split(', ')
         del parameters['subjects']
         self.parameters = parameters
 
@@ -161,9 +160,8 @@ class Student():
         files = FileHandler(None, STUDENT_LIST_DIR_ABSOLUTE_PATH).get_list_of_files_sorted_by_date_from_dir()
         student_id = len(files) + 1
         for subject in self.subjects:
-            logging.debug(f'Subjects {self.subjects}')
-            relation = f'{student_id} {subject}\n'
-            FileHandler('student_subject.csv', RELATIONAL_DB_PATH).add_and_write_file_to_dir(relation, 'a')
+            student_subject = f'{student_id} {subject}\n'
+            FileHandler('student_subject.csv', RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
 
     def write_to_file(self):
         Student.__write_to_relational_db(self)
