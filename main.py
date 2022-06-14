@@ -489,9 +489,41 @@ def print_relational_db():
 def edit_student():
     pass
 
-# TODO
+# TODO: Refactor.
 def list_students_by_subjects():
-    pass
+    db_contents = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
+    entries_list = db_contents[0].split('\n')
+
+    # NOTE: Last element is always empty, so get rid of it.
+    del entries_list[-1]
+    subjects_list = []
+    student_subject_list = []
+
+    for entry in entries_list:
+        entry = entry.split(':')
+        subjects_list.append(entry[-1])
+        student_subject_list.append(entry)
+
+    printed_subjects = []
+    for subject in subjects_list:
+        subject_was_printed = False
+        for printed_subject in printed_subjects:
+            if subject == printed_subject:
+                subject_was_printed = True
+
+        if subject_was_printed:
+            continue
+
+        student_num = 1
+        print(f'\nStudents learning {subject}:')
+        for cnt, pair in enumerate(student_subject_list):
+            if pair[-1] == subject:
+                print(f'Student #{student_num}')
+                raw_student = FileDirHandler(pair[0]+'.csv', STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+pair[0]+'.csv', 'r').readlines()[0]
+                print_student(raw_student)
+                student_num += 1
+
+        printed_subjects.append(subject)
 
 if __name__ == '__main__':
     # Logging
