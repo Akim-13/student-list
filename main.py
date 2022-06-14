@@ -9,9 +9,6 @@ SUBJECTS_PATH = CURRENT_PATH + 'subjects/'
 RELATIONAL_DB = 'student_subject.csv'
 RELATIONAL_DB_PATH = CURRENT_PATH + 'relational_db/'
 
-# TODO: To edit a student, use add_student with the same
-# name and last name to overwrite the existing file.
-
 class FileDirHandler():
     error = '<N/A>'
 
@@ -28,10 +25,13 @@ class FileDirHandler():
             # infinite recursion in case this function fails.
             FileDirHandler.create_dir_if_nonexistent(self)
             FileDirHandler(self.filename, self.dir)(self, func, *args, **kwargs)
+            # NOTE: This line is never reached, it's here just so that the
+            # LSP doesn't complain about doing operations on type None.
+            return func(*args)
 
         except RecursionError as e:
             e = str(e)
-            e += f'.\nThis error most likely occurred because "{self.filename}" does not exist and cannot be created.'
+            e += f'.\nThis error most likely occurred because "{self.filename}" does not exist and cannot be accessed.'
             FileDirHandler.error = e
             FileDirHandler.__exit_with_error()
 
@@ -74,6 +74,13 @@ class FileDirHandler():
         full_path = str(self.dir + self.filename)
         file = file_handler(open, full_path, f'{mode}')
         file.write(contents)
+
+    def delete_file(self):
+        try:
+            os.remove(self.filename)
+        except FileNotFoundError as e:
+            FileDirHandler.error = e
+            FileDirHandler.__exit_with_error()
 
 class Subjects():
     def __init__(self, subjects):
@@ -145,13 +152,12 @@ class Student():
         else:
             raise TypeError(f'parameter {parameter_name} does not exist.')
 
-    def set_parameter(self, parameter_name, parameter_value):
+    def set_parameter(self, parameter_name):
         if parameter_name in self.parameters:
-            # TODO: Validate the parameter.
-            self.parameters[ parameter_name ] = parameter_value
-            return True
+            parameter_to_edit = required_student_parameters[parameter_name]
+            self.parameters[ parameter_name ] = prompt_parameter_until_valid(parameter_to_edit)
         else:
-            return False
+            raise TypeError(f'parameter {parameter_name} does not exist.')
 
     def __write_to_relational_db(self):
         student = self.get_parameter('first_name') + '_' + self.get_parameter('last_name')
@@ -162,7 +168,7 @@ class Student():
     def write_to_file(self):
         Student.__write_to_relational_db(self)
         student_in_csv_format = Student.__get_in_csv_format(self)
-        filename = Student.__generate_filename(self)
+        filename = Student.generate_filename(self)
         FileDirHandler(filename, STUDENT_LIST_PATH).add_and_write_file_to_dir(student_in_csv_format, 'w')
 
     def __get_in_csv_format(self):
@@ -183,7 +189,7 @@ class Student():
         else:
             return format + ', '
 
-    def __generate_filename(self):
+    def generate_filename(self):
         first_name = self.parameters[ 'first_name' ]
         last_name = self.parameters[ 'last_name' ]
         extension = 'csv'
@@ -323,7 +329,7 @@ def initialisation():
         { 'description':'Quit',                            'function':quit },
         { 'description':'Add a new students',              'function':add_student },
         { 'description':'List all students',               'function':list_students },
-        { 'description':'[TODO] Edit an existing student', 'function':edit_student },
+        { 'description':'Edit an existing student',        'function':edit_student },
         { 'description':'List all subjects',               'function':Subjects(subjects).list_all },
         { 'description':'List all students by subjects',   'function':list_students_by_subjects },
         { 'description':'[DEV] Generate subject files',    'function':Subjects(subjects).generate_files },
@@ -485,9 +491,46 @@ def print_relational_db():
     except:
         print(f'ERROR: relational database not found. Specified path:\n{RELATIONAL_DB_PATH + RELATIONAL_DB}')
 
-# TODO
+# TODO: Allow editing subjects.
+# TODO: Refactor.
 def edit_student():
-    pass
+    list_students() 
+    student_ids = {}
+    student_files = FileDirHandler(None, STUDENT_LIST_PATH).get_list_of_files_sorted_by_date_from_dir()
+    for id, student in enumerate(student_files, start = 1):
+        student_ids[str(id)] = student
+
+    student_to_edit = input('Enter the number of student you want to edit: ')
+
+    print('Available parameters: ', end='')
+    for i, i_parameter in enumerate(required_student_parameters):
+        parameter = required_student_parameters[ i_parameter ][ 'name' ]
+        if i < len(required_student_parameters)-1:
+            print(parameter, end=', ')
+        else:
+            print(parameter)
+
+    filename = student_ids[student_to_edit]
+    raw_student = FileDirHandler(filename, STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+filename, 'r').readlines()[0].split(', ')
+    student_parameters = {}
+    for key_value in raw_student:
+        key_value = key_value.replace('"', '').split(', ')[0].split(':')
+        key = key_value[0]
+        value = key_value[-1].replace('\n', '')
+        student_parameters[key] = value
+
+    student_parameters['subjects'] = ''
+    # Q: This line somehow removes 'subjects' from student_parameters.
+    unedited_student_filename = Student(student_parameters).generate_filename()
+    student_parameters['subjects'] = ''
+
+    parameter_to_edit = input('Enter the parameter you want to edit: ').replace(' ', '_')
+    student = Student(student_parameters)
+    student.set_parameter(parameter_to_edit)
+    FileDirHandler(unedited_student_filename, STUDENT_LIST_PATH)(os.remove, unedited_student_filename)
+    student.write_to_file()
+    edited_student_filename = student.generate_filename()
+    print(f'Successfully edited "{unedited_student_filename}" and saved as "{edited_student_filename}".')
 
 # TODO: Refactor.
 def list_students_by_subjects():
@@ -524,10 +567,11 @@ def list_students_by_subjects():
 
         student_num = 1
         print(f'\nStudents learning {subject}:')
-        for cnt, pair in enumerate(student_subject_list):
+        for pair in student_subject_list:
             if pair[-1] == subject:
+                filename = pair[0] + '.csv'
                 try:
-                    raw_student = FileDirHandler(pair[0]+'.csv', STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+pair[0]+'.csv', 'r').readlines()[0]
+                    raw_student = FileDirHandler(filename, STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+filename, 'r').readlines()[0]
                 except:
                     print('ERROR: student list and relational database are out of sync.\n')     
                     return 2
