@@ -312,22 +312,22 @@ def initialisation():
     global required_student_parameters, actions, subjects
 
     subjects = {
-        'econ':    { 'name':'Economics',           'teacher':'Mr. Cameron Dron' }, \
-        'p_maths': { 'name':'Pure Mathematics',    'teacher':'Mrs. Mojgan Estafani' }, \
-        'a_maths': { 'name':'Applied Mathematics', 'teacher':'Mr. Richard Milner' }, \
-        'eng':     { 'name':'English Language',    'teacher':'Mrs. Kira Ivanovna' }, \
-        'cs':      { 'name':'Computer Science',    'teacher':'Mr. Anton Aleksandrovich' }, \
+        'econ':    { 'name':'Economics',     'teacher':'Mr. Cameron Dron' }, \
+        'p_maths': { 'name':'Pure Maths',    'teacher':'Mrs. Mojgan Estafani' }, \
+        'a_maths': { 'name':'Applied Maths', 'teacher':'Mr. Richard Milner' }, \
+        'eng':     { 'name':'English',       'teacher':'Mrs. Kira Ivanovna' }, \
+        'cs':      { 'name':'CS',            'teacher':'Mr. Anton Aleksandrovich' }, \
     }
 
     actions = [ 
-        { 'description':'Quit',                          'function':quit },
-        { 'description':'Add a new students',            'function':add_student },
-        { 'description':'List all students',             'function':list_students },
-        { 'description':'Edit an existing student',      'function':edit_student },
-        { 'description':'List all subjects',             'function':Subjects(subjects).list_all },
-        { 'description':'List all students by subjects', 'function':list_students_by_subjects },
-        { 'description':'[DEV] Generate subject files',        'function':Subjects(subjects).generate_files },
-        { 'description':'[DEV] Print relational database',     'function':print_relational_db }
+        { 'description':'Quit',                            'function':quit },
+        { 'description':'Add a new students',              'function':add_student },
+        { 'description':'List all students',               'function':list_students },
+        { 'description':'[TODO] Edit an existing student', 'function':edit_student },
+        { 'description':'List all subjects',               'function':Subjects(subjects).list_all },
+        { 'description':'List all students by subjects',   'function':list_students_by_subjects },
+        { 'description':'[DEV] Generate subject files',    'function':Subjects(subjects).generate_files },
+        { 'description':'[DEV] Print relational database', 'function':print_relational_db }
     ]
 
     required_student_parameters = {
@@ -492,8 +492,16 @@ def edit_student():
 # TODO: Refactor.
 def list_students_by_subjects():
     db_contents = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
-    entries_list = db_contents[0].split('\n')
+    student_files = FileDirHandler(None, STUDENT_LIST_PATH).get_list_of_files_sorted_by_date_from_dir()
 
+    if (not db_contents or db_contents[0]=='') or not student_files:
+        if db_contents or student_files:
+            print('ERROR: either student list or relational database does not exist/empty.\n')     
+        else:
+            print('There are no students in the list.')
+        return 2
+
+    entries_list = db_contents[0].split('\n')
     # NOTE: Last element is always empty, so get rid of it.
     del entries_list[-1]
     subjects_list = []
@@ -518,8 +526,12 @@ def list_students_by_subjects():
         print(f'\nStudents learning {subject}:')
         for cnt, pair in enumerate(student_subject_list):
             if pair[-1] == subject:
+                try:
+                    raw_student = FileDirHandler(pair[0]+'.csv', STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+pair[0]+'.csv', 'r').readlines()[0]
+                except:
+                    print('ERROR: student list and relational database are out of sync.\n')     
+                    return 2
                 print(f'Student #{student_num}')
-                raw_student = FileDirHandler(pair[0]+'.csv', STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+pair[0]+'.csv', 'r').readlines()[0]
                 print_student(raw_student)
                 student_num += 1
 
