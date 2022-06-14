@@ -154,10 +154,9 @@ class Student():
             return False
 
     def __write_to_relational_db(self):
-        files = FileDirHandler(None, STUDENT_LIST_PATH).get_list_of_files_sorted_by_date_from_dir()
-        student_id = len(files) + 1
+        student = self.get_parameter('first_name') + '_' + self.get_parameter('last_name')
         for subject in self.subjects:
-            student_subject = f'{student_id} {subject}\n'
+            student_subject = f'{student}:{subject}\n'
             FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
 
     def write_to_file(self):
@@ -481,14 +480,13 @@ def print_formatted_student_parameter(parameter_name, parameter_value):
 
 def print_relational_db():
     relational_db = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
-    print(relational_db[0])
+    try: 
+        print(relational_db[0])
+    except:
+        print(f'ERROR: relational database not found. Specified path:\n{RELATIONAL_DB_PATH + RELATIONAL_DB}')
 
 # TODO
 def edit_student():
-    pass
-
-# TODO
-def list_subjects():
     pass
 
 # TODO
