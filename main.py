@@ -152,6 +152,19 @@ class Student():
         else:
             raise TypeError(f'parameter {parameter_name} does not exist.')
 
+    @staticmethod
+    def get_list_of_subjects(filename):
+        filename = filename.replace('.csv', '')
+        db_entries = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()[0].split('\n')
+        subjects = []
+        for entry in db_entries:
+            entry = entry.split(':')
+            student_entry = entry[0]
+            subject_entry = entry[-1]
+            if filename == student_entry:
+                subjects.append(subject_entry)
+        return subjects
+
     def set_parameter(self, parameter_name):
         if parameter_name in self.parameters:
             parameter_to_edit = required_student_parameters[parameter_name]
@@ -165,8 +178,10 @@ class Student():
             student_subject = f'{student}:{subject}\n'
             FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
 
-    def write_to_file(self):
-        Student.__write_to_relational_db(self)
+    def write_to_file(self, write_to_db):
+        # HACK
+        if write_to_db:
+            Student.__write_to_relational_db(self)
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.generate_filename(self)
         FileDirHandler(filename, STUDENT_LIST_PATH).add_and_write_file_to_dir(student_in_csv_format, 'w')
@@ -378,7 +393,7 @@ def add_student():
         student_parameters[ i_parameter ] = prompt_parameter_until_valid(parameter)
 
     student = Student(student_parameters)
-    Student.write_to_file(student)
+    Student.write_to_file(student, True)
 
 def prompt_parameter_until_valid(parameter):
     entered_parameter = enter_parameter(parameter)
@@ -519,16 +534,23 @@ def edit_student():
         value = key_value[-1].replace('\n', '')
         student_parameters[key] = value
 
-    student_parameters['subjects'] = ''
+    student_parameters['subjects'] = Student.get_list_of_subjects(filename)
+    csv_subjects = ''
+    for subject in student_parameters['subjects']:
+        csv_subjects += subject + ', '
+    csv_subjects = csv_subjects.strip(', ')
+    student_parameters['subjects'] = csv_subjects
+
     # Q: This line somehow removes 'subjects' from student_parameters.
     unedited_student_filename = Student(student_parameters).generate_filename()
-    student_parameters['subjects'] = ''
 
+    # CONTINUE: implement subjects editing.
+    student_parameters['subjects'] = csv_subjects
     parameter_to_edit = input('Enter the parameter you want to edit: ').replace(' ', '_')
     student = Student(student_parameters)
     student.set_parameter(parameter_to_edit)
     FileDirHandler(unedited_student_filename, STUDENT_LIST_PATH)(os.remove, unedited_student_filename)
-    student.write_to_file()
+    student.write_to_file(False)
     edited_student_filename = student.generate_filename()
     print(f'Successfully edited "{unedited_student_filename}" and saved as "{edited_student_filename}".')
 
