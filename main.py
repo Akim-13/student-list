@@ -166,11 +166,53 @@ class Student():
         return subjects
 
     def set_parameter(self, parameter_name):
-        if parameter_name in self.parameters:
+        if parameter_name == 'subjects':
+            parameter_to_edit = required_student_parameters[parameter_name]
+            self.subjects = prompt_parameter_until_valid(parameter_to_edit).split(', ')
+            Student.edit_subjects(self)
+        elif parameter_name in self.parameters:
             parameter_to_edit = required_student_parameters[parameter_name]
             self.parameters[ parameter_name ] = prompt_parameter_until_valid(parameter_to_edit)
         else:
             raise TypeError(f'parameter {parameter_name} does not exist.')
+
+    def edit_subjects(self):
+        filename = Student.generate_filename(self)
+        formatted_filename = filename.replace('.csv', '')
+        db_contents = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
+
+        # HACK: duplicate code from list_students_by_subjects(). 
+        # Create Database class and appropriate functions.
+        entries_list = db_contents[0].split('\n')
+        # NOTE: Last element is always empty, so get rid of it.
+        del entries_list[-1]
+        students_list = []
+        student_subject_list = []
+        db_contents_dict = {}
+        for i, entry in enumerate(entries_list):
+            entry = entry.split(':')
+            # {'0': '[student, subject]' }
+            db_contents_dict[str(i)] = entry
+            students_list.append(entry[0])
+            student_subject_list.append(entry)
+
+        FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH)(os.remove, RELATIONAL_DB)
+        # HACK: Dictionary size cannot be changes when iterating through it.
+        db_copy = db_contents_dict.copy()
+        # NOTE: This removes every occurrence of a student in the DB.
+        for key in db_copy.keys():
+            if db_copy[key][0] == formatted_filename:
+                db_contents_dict.pop(key)
+
+            try:
+                student = db_contents_dict[key][0]
+                subject = db_contents_dict[key][-1]
+                student_subject = f'{student}:{subject}\n'
+                FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
+            except:
+                pass
+
+        Student.__write_to_relational_db(self)
 
     def __write_to_relational_db(self):
         student = self.get_parameter('first_name') + '_' + self.get_parameter('last_name')
@@ -534,6 +576,7 @@ def edit_student():
         value = key_value[-1].replace('\n', '')
         student_parameters[key] = value
 
+    # FIXME: This line causes recursion error. Good luck.
     student_parameters['subjects'] = Student.get_list_of_subjects(filename)
     csv_subjects = ''
     for subject in student_parameters['subjects']:
@@ -544,7 +587,6 @@ def edit_student():
     # Q: This line somehow removes 'subjects' from student_parameters.
     unedited_student_filename = Student(student_parameters).generate_filename()
 
-    # CONTINUE: implement subjects editing.
     student_parameters['subjects'] = csv_subjects
     parameter_to_edit = input('Enter the parameter you want to edit: ').replace(' ', '_')
     student = Student(student_parameters)
