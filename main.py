@@ -12,12 +12,55 @@ SUBJECTS_PATH = CURRENT_PATH + 'subjects/'
 RELATIONAL_DB = 'student_subject.csv'
 RELATIONAL_DB_PATH = CURRENT_PATH + 'relational_db/'
 
+
+class Database():
+    def __init__(self):
+        db_contents = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
+        self.contents = db_contents
+
+        if not Database.exists_and_not_emtpy(self):
+            sys.exit('ERROR: Relational database is either empty or not accessible.')
+
+        self.contents_list = db_contents[0].split('\n')
+        # NOTE: Last element is always empty, so get rid of it.
+        del self.contents_list[-1]
+
+    def get_list_of_contents(self):
+        return self.contents_list
+
+    def exists_and_not_emtpy(self):
+        if self.contents and self.contents[0]!='':
+            return True
+        else:
+            return False
+
+    def get_list_of_students_or_subjects_or_student_subject(self, option):
+        students_list = []
+        subjects_list = []
+        student_subject_list = []
+        for entry in self.contents_list:
+            entry = entry.split(':')
+            students_list.append(entry[0])
+            subjects_list.append(entry[-1])
+            student_subject_list.append(entry)
+
+        if option == 'students':
+            return students_list
+        elif option == 'subjects':
+            return subjects_list
+        elif option == 'student_subject':
+            return student_subject_list
+        else:
+            raise ValueError('Invalid option.')
+
+
 class FileDirHandler():
     error = '<N/A>'
 
     def __init__(self, filename, dir):
         self.filename = filename
         self.dir = dir
+
 
     def __call__(self, func, *args, **kwargs):
         try:
@@ -45,19 +88,23 @@ class FileDirHandler():
             FileDirHandler.error = e
             FileDirHandler.__exit_with_error()
 
+
     def create_dir_if_nonexistent(self):
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
 
+
     @staticmethod
     def __exit_with_error():
         sys.exit(f'ERROR: {FileDirHandler.error}')
+
 
     def get_list_of_files_sorted_by_date_from_dir(self):
         dir_handler = FileDirHandler(None, self.dir)
         list_of_files = dir_handler(os.listdir, self.dir)
         list_of_files.sort(key=lambda x: os.path.getmtime(str(self.dir) + x))
         return list_of_files
+
 
     def get_contents_of_all_files_in_dir(self):
         files = FileDirHandler(None, self.dir).get_list_of_files_sorted_by_date_from_dir()
@@ -70,6 +117,7 @@ class FileDirHandler():
 
         return list_of_contents
 
+
     def add_and_write_file_to_dir(self, contents, mode):
         file_handler = FileDirHandler(self.filename, self.dir)
         file_handler.create_dir_if_nonexistent()
@@ -77,9 +125,11 @@ class FileDirHandler():
         file = file_handler(open, full_path, f'{mode}')
         file.write(contents)
 
+
 class Subjects():
     def __init__(self, subjects):
         self.subjects = subjects
+
 
     def generate_files(self):
         for key, values in self.subjects.items():
@@ -87,6 +137,7 @@ class Subjects():
             values_in_csv_format = Subjects.__get_in_csv_format(self, values)
             FileDirHandler(filename, SUBJECTS_PATH).add_and_write_file_to_dir(values_in_csv_format, 'w')
             print(f'Successfully generated "{SUBJECTS_PATH}{filename}".')
+
 
     def list_all(self):
         subjects = Subjects.get_dict_of_subjects_from_files_in_dir(self)
@@ -102,6 +153,7 @@ class Subjects():
                     print(f'{parameter}')
                 i += 1
             cnt += 1
+
 
     def get_dict_of_subjects_from_files_in_dir(self):
         cnt = 0
@@ -125,22 +177,26 @@ class Subjects():
 
         return subjects
 
+
     def __get_in_csv_format(self, values):
         values_no_braces = str(values).replace('{','').replace('}','')
         values_single_quotes = values_no_braces.replace('"',"'").replace("'", '"')
         values_in_csv_format = values_single_quotes.replace(': ',':')
         return values_in_csv_format
 
+
 class Student():
     def __init__(self, parameters):
         self.subjects = parameters['subjects'].split(', ')
         self.parameters = { key:value for key,value in parameters.items() if key!='subjects' }
+
 
     def get_parameter(self, parameter_name):
         if parameter_name in self.parameters:
             return self.parameters[ parameter_name ]
         else:
             raise TypeError(f'parameter {parameter_name} does not exist.')
+
 
     def set_parameter(self, parameter_name):
         if parameter_name == 'subjects':
@@ -152,6 +208,7 @@ class Student():
             self.parameters[ parameter_name ] = prompt_parameter_until_valid(parameter_to_edit)
         else:
             raise TypeError(f'parameter {parameter_name} does not exist.')
+
 
     def edit_subjects(self):
         filename = Student.generate_filename(self)
@@ -191,11 +248,13 @@ class Student():
 
         Student.__write_to_relational_db(self)
 
+
     def __write_to_relational_db(self):
         student = self.get_parameter('first_name') + '_' + self.get_parameter('last_name')
         for subject in self.subjects:
             student_subject = f'{student}:{subject}\n'
             FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).add_and_write_file_to_dir(student_subject, 'a')
+
 
     def write_to_file(self, write_to_db):
         # HACK
@@ -204,6 +263,7 @@ class Student():
         student_in_csv_format = Student.__get_in_csv_format(self)
         filename = Student.generate_filename(self)
         FileDirHandler(filename, STUDENT_LIST_PATH).add_and_write_file_to_dir(student_in_csv_format, 'w')
+
 
     def __get_in_csv_format(self):
         student_in_csv_format = ''
@@ -216,6 +276,7 @@ class Student():
 
         return student_in_csv_format
 
+
     def __get_parameter_with_delimiter(self, is_last_iteration):
         format = f'"{self.key}":"{self.value}"'
         if is_last_iteration:
@@ -223,12 +284,14 @@ class Student():
         else:
             return format + ', '
 
+
     def generate_filename(self):
         first_name = self.parameters[ 'first_name' ]
         last_name = self.parameters[ 'last_name' ]
         extension = 'csv'
         filename = f'{first_name}_{last_name}.{extension}'
         return filename
+
 
 def get_list_of_subjects(filename):
     filename = filename.replace('.csv', '')
@@ -242,6 +305,7 @@ def get_list_of_subjects(filename):
             subjects.append(subject_entry)
     return subjects
 
+
 class Validator():
     def __init__(self, entered_parameter):
         self.value = entered_parameter[ 'input_value' ]
@@ -252,6 +316,7 @@ class Validator():
         self.valid = False
         self.result = ''
         self.error = ''
+
 
     def is_valid(self):
         Validator.__validate_by_type(self)
@@ -265,6 +330,7 @@ class Validator():
 
         return self.valid
 
+
     def __validate_by_type(self):
         if self.type == 'string':
             Validator.__validate_string(self)
@@ -273,10 +339,12 @@ class Validator():
         else:
             sys.exit('ERROR: Unknown parameter type.')
 
+
     def __validate_string(self):
         # NOTE: Any user input can be converted to string, so just return it.
         self.result = str(self.value)
         self.valid = True
+
 
     def __validate_number(self):
         try:
@@ -285,6 +353,7 @@ class Validator():
         except:
             self.error = 'The value is not a number.'
             self.valid = False
+
 
     def __validate_restrictions(self):
         for restriction in self.restrictions:
@@ -300,19 +369,23 @@ class Validator():
             else:
                 return
 
+
     def __validate_non_empty_restriction(self, restriction):
         try:
             Validator.__check_if_empty(self, self.result)
         except:
             Validator.__exit_with_error_invalid_restriction(self, restriction)
 
+
     def __check_if_empty(self, result):
         if result == '':
             self.error = 'The value is empty.'
             self.valid = False
 
+
     def __exit_with_error_invalid_restriction(self, restriction):
         sys.exit(f'ERROR: invalid restriction {restriction} for type {self.type}')
+
 
     def __validate_integer_restriction(self):
         try:
@@ -321,6 +394,7 @@ class Validator():
             self.error = 'The value is not an integer.'
             self.valid = False
 
+
     def __check_if_integer(self, result):
         if result == int(result):
             self.result = int(result)
@@ -328,16 +402,19 @@ class Validator():
             self.error = 'The value is a number but not an integer.'
             self.valid = False
 
+
     def __validate_positive_restriction(self, restriction):
         try:
             Validator.__check_if_positive(self, self.result)
         except:
             Validator.__exit_with_error_invalid_restriction(self, restriction)
 
+
     def __check_if_positive(self, result):
         if result <= 0:
             self.valid = False
             self.error = 'The value is not positive'
+
 
     def __validate_options(self):
         # FEATURE: Yes, this does in fact allow to have a student who is male
@@ -354,15 +431,16 @@ class Validator():
                 self.error = 'The value was not found in the list of valid options'
                 self.valid = False
 
+
 def main():
     initialisation()
     print_actions()
     while True:
         select_action()
 
+
 def initialisation():
     global required_student_parameters, actions, subjects
-
     subjects = {
         'econ':    { 'name':'Economics',     'teacher':'Mr. Cameron Dron' }, \
         'p_maths': { 'name':'Pure Maths',    'teacher':'Mrs. Mojgan Estafani' }, \
@@ -390,12 +468,14 @@ def initialisation():
         'subjects':   { 'name':'subjects',   'type':'string', 'restrictions':[], 'options':[ subject['name'] for subject in subjects.values() ] } \
     }
 
+
 def print_actions():
     action_num = 0
     for action in actions:
         print(f'{action_num}) {action[ "description" ]}')
         action_num += 1
     print()
+
 
 def select_action():
     selected_action = input('Please select an action: ')
@@ -408,6 +488,7 @@ def select_action():
     # NOTE: Call a function corresponding to a selected action.
     actions[ int(selected_action) ][ 'function' ]()
 
+
 def action_is_valid(selected_action):
     is_valid = selected_action.isdigit() and int(selected_action)>=0 and int(selected_action)<=len(actions)
 
@@ -415,6 +496,7 @@ def action_is_valid(selected_action):
         return True
     else:
         return False
+
 
 def add_student():
     student_parameters = {}
@@ -426,12 +508,14 @@ def add_student():
     student = Student(student_parameters)
     Student.write_to_file(student, True)
 
+
 def prompt_parameter_until_valid(parameter):
     entered_parameter = enter_parameter(parameter)
     while not parameter_is_valid(entered_parameter):
         entered_parameter = enter_parameter(parameter)
 
     return entered_parameter[ 'input_value' ]
+
 
 def enter_parameter(parameter):
     input_prompt = "Please enter the student's " + parameter[ 'name' ]
@@ -454,6 +538,7 @@ def enter_parameter(parameter):
 
     return entered_parameter
 
+
 def list_parameter_options(options):
     options_list = ''
     for option in options:
@@ -465,6 +550,7 @@ def list_parameter_options(options):
     input_prompt = ("; possible values are " + options_list)
     return input_prompt
 
+
 def parameter_is_valid(entered_parameter):
     validation_result = Validator(entered_parameter)
 
@@ -472,6 +558,7 @@ def parameter_is_valid(entered_parameter):
         return True
     else:
         print("Error: " + validation_result.error)
+
 
 def list_students():
     raw_list_of_students = FileDirHandler(None, STUDENT_LIST_PATH).get_contents_of_all_files_in_dir()
@@ -482,11 +569,13 @@ def list_students():
     else:
         print_each_student(raw_list_of_students)
 
+
 def list_of_students_is_empty(students):
     if len(students) == 0:
         return True
     else:
         return False
+
 
 def print_each_student(raw_list_of_students):
     student_num = 1
@@ -496,6 +585,7 @@ def print_each_student(raw_list_of_students):
         print_student(raw_student)
 
         student_num += 1
+
 
 def print_student(raw_student):
     parameter_num = 1
@@ -508,6 +598,7 @@ def print_student(raw_student):
 
         parameter_num += 1
 
+
 def print_parameter(str_raw_parameter):
     key_value_pair = str_raw_parameter.split(':')
     key = key_value_pair[ 0 ].replace('"', '')
@@ -518,6 +609,7 @@ def print_parameter(str_raw_parameter):
         if parameter_name != None:
             print_formatted_student_parameter(parameter_name, value)
 
+
 def get_parameter_name_by_matching_keys(key, req_parameter_key):
     if key == req_parameter_key:
         parameter_name = required_student_parameters[ req_parameter_key ][ 'name' ].capitalize()
@@ -527,8 +619,10 @@ def get_parameter_name_by_matching_keys(key, req_parameter_key):
         # print_parameter(...), where there is a check for None.
         return None
 
+
 def print_formatted_student_parameter(parameter_name, parameter_value):
     print(f'{parameter_name}: {parameter_value}')
+
 
 def print_relational_db():
     relational_db = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
@@ -536,6 +630,7 @@ def print_relational_db():
         print(relational_db[0])
     except:
         print(f'ERROR: relational database not found. Specified path:\n{RELATIONAL_DB_PATH + RELATIONAL_DB}')
+
 
 # TODO: Refactor.
 def edit_student():
@@ -581,54 +676,70 @@ def edit_student():
     edited_student_filename = student.generate_filename()
     print(f'Successfully edited "{unedited_student_filename}" and saved as "{edited_student_filename}".')
 
+
 # TODO: Refactor.
 def list_students_by_subjects():
-    db_contents = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()
+    db = Database()
     student_files = FileDirHandler(None, STUDENT_LIST_PATH).get_list_of_files_sorted_by_date_from_dir()
 
-    if (not db_contents or db_contents[0]=='') or not student_files:
-        if db_contents or student_files:
+    if not db_and_student_list_valid(student_files):
+        return False
+
+    subjects_list = db.get_list_of_students_or_subjects_or_student_subject('subjects')
+    printed_subjects = []
+
+    for subject in subjects_list:
+        if subject_was_printed(subject, printed_subjects):
+            continue
+        print_students_learning_subject(subject)
+        printed_subjects.append(subject)
+
+
+def print_students_learning_subject(subject):
+    student_subject_list = Database().get_list_of_students_or_subjects_or_student_subject('student_subject')
+    print(f'\nStudents learning {subject}:')
+    # FIXME: Student numbers are incorrect.
+    for student_num, student_subject in enumerate(student_subject_list, start = 1):
+        print_student_learning_subject(subject, student_subject, student_num)
+
+
+def print_student_learning_subject(subject, student_subject_pair, student_num):
+    if student_subject_pair[1] == subject:
+        filename = student_subject_pair[0] + '.csv'
+        raw_student = get_raw_student(filename)
+        print(f'Student #{student_num}')
+        print_student(raw_student)
+
+
+def get_raw_student(filename):
+    try:
+        contents = FileDirHandler(filename, STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+filename, 'r')
+        raw_student = contents.readlines()[0]
+        return raw_student
+    except:
+        sys.exit('ERROR: student list and relational database are out of sync.\n')     
+
+
+def subject_was_printed(subject, printed_subjects):
+    for printed_subject in printed_subjects:
+        if subject == printed_subject:
+            return True
+        else:
+            return False
+
+
+def db_and_student_list_valid(student_files):
+    db = Database()
+    if (not db.exists_and_not_emtpy()) or not student_files:
+        if db.get_list_of_contents() or student_files:
             print('ERROR: either student list or relational database does not exist/empty.\n')     
         else:
             print('There are no students in the list.')
-        return 2
+        return False
 
-    entries_list = db_contents[0].split('\n')
-    # NOTE: Last element is always empty, so get rid of it.
-    del entries_list[-1]
-    subjects_list = []
-    student_subject_list = []
+    else:
+        return True
 
-    for entry in entries_list:
-        entry = entry.split(':')
-        subjects_list.append(entry[-1])
-        student_subject_list.append(entry)
-
-    printed_subjects = []
-    for subject in subjects_list:
-        subject_was_printed = False
-        for printed_subject in printed_subjects:
-            if subject == printed_subject:
-                subject_was_printed = True
-
-        if subject_was_printed:
-            continue
-
-        student_num = 1
-        print(f'\nStudents learning {subject}:')
-        for pair in student_subject_list:
-            if pair[-1] == subject:
-                filename = pair[0] + '.csv'
-                try:
-                    raw_student = FileDirHandler(filename, STUDENT_LIST_PATH)(open, STUDENT_LIST_PATH+filename, 'r').readlines()[0]
-                except:
-                    print('ERROR: student list and relational database are out of sync.\n')     
-                    return 2
-                print(f'Student #{student_num}')
-                print_student(raw_student)
-                student_num += 1
-
-        printed_subjects.append(subject)
 
 if __name__ == '__main__':
     main()
