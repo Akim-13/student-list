@@ -1,6 +1,9 @@
-import logging
 import sys
 import os
+import logging
+from logging import debug as D
+
+logging.basicConfig(level = logging.DEBUG, format = '[%(levelname)s] -----> [%(lineno)s]: %(msg)s')
 
 # NOTE: The absolute path is used for compatibility with Windows.
 CURRENT_PATH = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -31,7 +34,8 @@ class FileDirHandler():
 
         except RecursionError as e:
             e = str(e)
-            e += f'.\nThis error most likely occurred because "{self.filename}" does not exist and cannot be accessed.'
+            absolute_path = os.path.realpath(self.filename)
+            e += f'.\nThis error most likely occurred because "{absolute_path}" does not exist and cannot be accessed.'
             FileDirHandler.error = e
             FileDirHandler.__exit_with_error()
 
@@ -51,10 +55,8 @@ class FileDirHandler():
 
     def get_list_of_files_sorted_by_date_from_dir(self):
         dir_handler = FileDirHandler(None, self.dir)
-        dir_handler(os.chdir, self.dir) 
-        list_of_files = os.listdir(self.dir)
-        list_of_files.sort(key = os.path.getmtime)
-
+        list_of_files = dir_handler(os.listdir, self.dir)
+        list_of_files.sort(key=lambda x: os.path.getmtime(str(self.dir) + x))
         return list_of_files
 
     def get_contents_of_all_files_in_dir(self):
@@ -74,13 +76,6 @@ class FileDirHandler():
         full_path = str(self.dir + self.filename)
         file = file_handler(open, full_path, f'{mode}')
         file.write(contents)
-
-    def delete_file(self):
-        try:
-            os.remove(self.filename)
-        except FileNotFoundError as e:
-            FileDirHandler.error = e
-            FileDirHandler.__exit_with_error()
 
 class Subjects():
     def __init__(self, subjects):
@@ -130,10 +125,6 @@ class Subjects():
 
         return subjects
 
-    def __print_subject(self, subject):
-        print(subject['name'])
-
-
     def __get_in_csv_format(self, values):
         values_no_braces = str(values).replace('{','').replace('}','')
         values_single_quotes = values_no_braces.replace('"',"'").replace("'", '"')
@@ -143,27 +134,13 @@ class Subjects():
 class Student():
     def __init__(self, parameters):
         self.subjects = parameters['subjects'].split(', ')
-        del parameters['subjects']
-        self.parameters = parameters
+        self.parameters = { key:value for key,value in parameters.items() if key!='subjects' }
 
     def get_parameter(self, parameter_name):
         if parameter_name in self.parameters:
             return self.parameters[ parameter_name ]
         else:
             raise TypeError(f'parameter {parameter_name} does not exist.')
-
-    @staticmethod
-    def get_list_of_subjects(filename):
-        filename = filename.replace('.csv', '')
-        db_entries = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()[0].split('\n')
-        subjects = []
-        for entry in db_entries:
-            entry = entry.split(':')
-            student_entry = entry[0]
-            subject_entry = entry[-1]
-            if filename == student_entry:
-                subjects.append(subject_entry)
-        return subjects
 
     def set_parameter(self, parameter_name):
         if parameter_name == 'subjects':
@@ -191,12 +168,12 @@ class Student():
         db_contents_dict = {}
         for i, entry in enumerate(entries_list):
             entry = entry.split(':')
-            # {'0': '[student, subject]' }
+            # INFO: {'0': '[student, subject]' }
             db_contents_dict[str(i)] = entry
             students_list.append(entry[0])
             student_subject_list.append(entry)
 
-        FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH)(os.remove, RELATIONAL_DB)
+        FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH)(os.remove, RELATIONAL_DB_PATH+RELATIONAL_DB)
         # HACK: Dictionary size cannot be changes when iterating through it.
         db_copy = db_contents_dict.copy()
         # NOTE: This removes every occurrence of a student in the DB.
@@ -252,6 +229,18 @@ class Student():
         extension = 'csv'
         filename = f'{first_name}_{last_name}.{extension}'
         return filename
+
+def get_list_of_subjects(filename):
+    filename = filename.replace('.csv', '')
+    db_entries = FileDirHandler(RELATIONAL_DB, RELATIONAL_DB_PATH).get_contents_of_all_files_in_dir()[0].split('\n')
+    subjects = []
+    for entry in db_entries:
+        entry = entry.split(':')
+        student_entry = entry[0]
+        subject_entry = entry[-1]
+        if filename == student_entry:
+            subjects.append(subject_entry)
+    return subjects
 
 class Validator():
     def __init__(self, entered_parameter):
@@ -548,7 +537,6 @@ def print_relational_db():
     except:
         print(f'ERROR: relational database not found. Specified path:\n{RELATIONAL_DB_PATH + RELATIONAL_DB}')
 
-# TODO: Allow editing subjects.
 # TODO: Refactor.
 def edit_student():
     list_students() 
@@ -576,22 +564,19 @@ def edit_student():
         value = key_value[-1].replace('\n', '')
         student_parameters[key] = value
 
-    # FIXME: This line causes recursion error. Good luck.
-    student_parameters['subjects'] = Student.get_list_of_subjects(filename)
+    subjects_list = get_list_of_subjects(filename)
     csv_subjects = ''
-    for subject in student_parameters['subjects']:
-        csv_subjects += subject + ', '
+    for subject in subjects_list:
+       csv_subjects += subject + ', '
     csv_subjects = csv_subjects.strip(', ')
     student_parameters['subjects'] = csv_subjects
 
-    # Q: This line somehow removes 'subjects' from student_parameters.
     unedited_student_filename = Student(student_parameters).generate_filename()
 
-    student_parameters['subjects'] = csv_subjects
     parameter_to_edit = input('Enter the parameter you want to edit: ').replace(' ', '_')
     student = Student(student_parameters)
     student.set_parameter(parameter_to_edit)
-    FileDirHandler(unedited_student_filename, STUDENT_LIST_PATH)(os.remove, unedited_student_filename)
+    FileDirHandler(unedited_student_filename, STUDENT_LIST_PATH)(os.remove, STUDENT_LIST_PATH+unedited_student_filename)
     student.write_to_file(False)
     edited_student_filename = student.generate_filename()
     print(f'Successfully edited "{unedited_student_filename}" and saved as "{edited_student_filename}".')
@@ -646,9 +631,4 @@ def list_students_by_subjects():
         printed_subjects.append(subject)
 
 if __name__ == '__main__':
-    # Logging
-    lvl = logging.DEBUG 
-    fmt = '%(lineno)s: [%(levelname)s] %(msg)s'
-    logging.basicConfig(level = lvl, format = fmt)
-
     main()
